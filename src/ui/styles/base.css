@@ -1,0 +1,24 @@
+:root {
+  --dsn-primary-color: var(--sl-color-primary-600);
+  --dsn-background-color: var(--sl-color-neutral-0);
+  --dsn-text-color: var(--sl-color-neutral-900);
+  --dsn-border-color: var(--sl-color-neutral-200);
+  --dsn-valid-color: var(--sl-color-success-600);
+  --dsn-invalid-color: var(--sl-color-neutral-400);
+  --dsn-card-padding: 12px;
+  --dsn-spacing: 8px;
+}
+
+.dsn-valid-selector {
+  color: var(--dsn-text-color);
+  font-weight: normal;
+}
+
+.dsn-invalid-selector {
+  color: var(--dsn-invalid-color);
+}
+
+.dsn-selected-selector {
+  font-weight: bold;
+  color: var(--dsn-primary-color);
+}

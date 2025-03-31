@@ -1,0 +1,1333 @@
+/* Status message that appears when selecting an element */
+.dsn-status-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 999999;
+  font-family: Arial, sans-serif;
+}
+
+/* CSS Reset for panel elements to prevent inheritance from the target page */
+.dsn-panel-container * {
+  all: initial;
+  box-sizing: border-box !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  line-height: normal !important;
+  color: inherit;
+  text-shadow: none !important;
+  font-size: 14px !important;
+  letter-spacing: normal;
+}
+
+/* Main panel container - ensure it's properly positioned and resizable */
+.dsn-panel-container {
+  all: initial;
+  position: fixed; 
+  /* Default positioning is now handled completely in JavaScript */
+  background-color: white !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 5px 10px rgba(0, 0, 0, 0.12);
+  border-radius: 0;
+  border: none;
+  z-index: 2147483647 !important; /* Kept !important for z-index to stay on top */
+  padding: 0;
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  resize: both; 
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  color: #1e293b;
+  text-align: left;
+  line-height: 1.5;
+  /* Width, height, left, top are calculated and set by JavaScript */
+}
+
+/* Add a more visible resize handle indicator in the bottom right corner */
+.dsn-panel-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize !important; /* Kept for cursor indication */
+  background-image: linear-gradient(135deg, transparent 0%, transparent 40%, #64748b 40%, #64748b 60%, transparent 60%, transparent);
+  background-size: 10px 10px;
+  background-position: right bottom;
+  background-repeat: no-repeat;
+  z-index: 10;
+  opacity: 0.8;
+  pointer-events: auto; /* This ensures the resize handle is clickable */
+}
+
+.dsn-panel-container:hover::after {
+  opacity: 1;
+  width: 20px;
+  height: 20px;
+}
+
+/* Custom dragging class */
+.dsn-dragging {
+  user-select: none !important;
+  cursor: move !important;
+  opacity: 0.95;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25), 0 10px 15px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.2s, opacity 0.2s;
+}
+
+/* Panel header styling - ensure it's usable for dragging */
+.dsn-panel-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin: 0 !important;
+  padding: 8px 12px !important; /* Slightly increase for better grab area */
+  background: linear-gradient(to right, #3b82f6, #2563eb) !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: normal !important;
+  cursor: move !important;  
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  touch-action: none !important;
+}
+
+/* Panel title */
+.dsn-panel-title {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  user-select: none !important;
+  color: white !important;
+  text-align: left !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  line-height: 1.5 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+/* Close button */
+.dsn-close-button {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  font-size: 18px !important;
+  cursor: pointer !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  text-decoration: none !important;
+}
+
+/* Content container with padding */
+.dsn-panel-content {
+  padding: 8px !important;
+  padding-bottom: 60px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  overflow: hidden !important;
+  background-color: white !important;
+}
+
+/* Section styles */
+.dsn-section {
+  margin-bottom: 20px !important;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+}
+
+/* Make the hierarchy section flex and grow */
+.dsn-section:first-child {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.dsn-section-title {
+  margin: 0 0 10px 0 !important;
+  padding: 0 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  flex: 0 0 auto !important;
+  text-align: left !important;
+  background: none !important;
+  border: none !important;
+  text-transform: none !important;
+}
+
+/* Hierarchy container */
+.dsn-hierarchy-container {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05) !important;
+  background-color: white !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Card styles */
+.dsn-card {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dsn-card:first-child {
+  border-top: 1px solid #e2e8f0;
+}
+
+.dsn-card-header {
+  padding: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+/* Make sure all child elements of the header inherit the pointer cursor */
+.dsn-card-header > * {
+  cursor: pointer !important;
+}
+
+.dsn-card-header:hover {
+  background-color: #f1f5f9;
+}
+
+.dsn-card-header-even {
+  background-color: #f8fafc;
+}
+
+.dsn-card-header-selected {
+  background-color: #e0f2fe;
+  font-weight: bold;
+  border-bottom: 1px solid #bae6fd;
+}
+
+.dsn-card-header.dsn-disabled {
+  opacity: 0.5 !important;
+  pointer-events: none !important;
+  position: relative !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* Base disabled state with no message */
+.dsn-card-header.dsn-disabled:after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  justify-content: right !important;
+  padding-right: 25px !important;
+  align-items: center !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: blue !important;
+  font-size: 12px !important;
+  font-style: italic !important;
+  z-index: 1 !important;
+}
+
+/* Pseudo-element disabled message */
+.dsn-card-header.dsn-disabled-pseudo:after {
+  content: 'Disabled when using pseudo-element' !important;
+}
+
+/* ID selector disabled message */
+.dsn-card-header.dsn-disabled-id:after {
+  content: 'Disabled when using ID selector' !important;
+}
+
+.dsn-chevron {
+  font-size: 12px;
+}
+
+.dsn-card-content {
+  display: none;
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  max-height: none !important; /* Don't limit the card content height */
+  overflow: visible !important; /* Let the lists handle their own scrolling */
+}
+
+/* Selector grid - updated to 4 columns instead of 5 since we're consolidating */
+.dsn-selector-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 10px !important;
+  height: auto !important;
+}
+
+/* Each column in the selector grid */
+.dsn-selector-grid > div {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+/* Selector lists with scrolling */
+.dsn-selector-list {
+  list-style-type: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: none !important;
+  border: none !important;
+  max-height: 188px !important; /* Adjusted from 180px to 188px as requested */
+  overflow-y: auto !important; /* Enable vertical scrolling */
+  overflow-x: hidden !important; /* Hide horizontal scrollbar */
+  scrollbar-width: thin !important; /* Firefox scrollbar styling */
+  scrollbar-color: #cbd5e1 transparent !important; /* Firefox scrollbar colors */
+  width: 100% !important; /* Ensure full width */
+}
+
+/* Webkit scrollbar customization - ensure visibility */
+.dsn-selector-list::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important; /* Add height for horizontal scrollbars if needed */
+}
+
+.dsn-selector-list::-webkit-scrollbar-track {
+  background: transparent !important;
+  border-radius: 3px !important;
+}
+
+.dsn-selector-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1 !important;
+  border-radius: 3px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Add thin border for better visibility */
+}
+
+.dsn-selector-list::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8 !important;
+}
+
+/* Selector lists with fixed height and scrolling */
+.dsn-selector-list {
+  list-style-type: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background-color: #f8fafc !important; /* Light background to distinguish the list */
+  border: 1px solid #e2e8f0 !important; /* Add border to clearly show the scrollable area */
+  border-radius: 4px !important;
+  height: 188px !important; /* Fixed height instead of max-height */
+  overflow-y: auto !important; /* Enable vertical scrolling */
+  overflow-x: hidden !important; /* Hide horizontal scrollbar */
+  scrollbar-width: thin !important; /* Firefox scrollbar styling */
+  scrollbar-color: #94a3b8 transparent !important; /* Darker scrollbar color for better visibility */
+  width: 100% !important; /* Ensure full width */
+  flex: 1 1 auto !important; /* Allow it to grow to fill available space */
+  display: block !important; /* Ensure it's a block element */
+  position: relative !important; /* For proper stacking */
+}
+
+/* Webkit scrollbar customization - make it more visible */
+.dsn-selector-list::-webkit-scrollbar {
+  width: 8px !important; /* Slightly wider for better usability */
+  height: 8px !important;
+}
+
+.dsn-selector-list::-webkit-scrollbar-track {
+  background: #f1f5f9 !important; /* Light track color */
+  border-radius: 4px !important;
+}
+
+.dsn-selector-list::-webkit-scrollbar-thumb {
+  background-color: #94a3b8 !important; /* Darker thumb color for better visibility */
+  border-radius: 4px !important;
+  border: 2px solid #f1f5f9 !important; /* Border around thumb for better visibility */
+}
+
+.dsn-selector-list::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b !important; /* Even darker on hover */
+}
+
+.dsn-category-title {
+  margin: 0 0 8px 0 !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  color: #475569 !important;
+  flex: 0 0 auto !important; /* Don't grow or shrink */
+}
+
+.dsn-selector-item {
+  display: block !important; /* Ensure each item takes full width */
+  width: 100% !important;
+  margin-bottom: 4px !important;
+  padding: 6px 8px !important; /* Slightly increased padding for better clickability */
+  background-color: #f5f5f5 !important;
+  cursor: pointer !important;
+  border-radius: 2px !important;
+  font-family: monospace !important;
+  font-size: 12px !important;
+  border: 2px solid transparent !important;
+  text-align: left !important;
+  list-style: none !important;
+  color: #334155 !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important; /* Prevent text from wrapping */
+  overflow: hidden !important;
+  text-overflow: ellipsis !important; /* Add ellipsis for overflowing text */
+  line-height: 1.2 !important; /* Consistent line height */
+  position: relative !important; /* For ellipsis icon positioning */
+  padding-right: 28px !important; /* Increased right padding to make space for button */
+}
+
+/* Pseudo item (now part of core section) */
+.dsn-pseudo-item {
+  color: #9333ea !important; /* Purple color to distinguish pseudo-elements */
+  position: relative !important;
+  border-top: 1px dashed #e5e7eb !important; /* Add subtle divider between core and pseudo */
+}
+
+/* Add separator between tag/id and pseudo-elements */
+.dsn-pseudo-item:first-of-type {
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+}
+
+/* Remove the warning triangle emoji */
+.dsn-pseudo-item:after {
+  content: '' !important; /* Empty content instead of warning emoji */
+}
+
+/* Pseudo element highlighting */
+.dsn-selector-item[data-selector-type="pseudo"] {
+  color: #9333ea !important; /* Purple color to distinguish pseudo-elements */
+  position: relative !important;
+}
+
+/* Remove the warning triangle emoji */
+.dsn-selector-item[data-selector-type="pseudo"]:after {
+  content: '' !important; /* Empty content instead of warning emoji */
+}
+
+/* Improve visual feedback when hovering */
+.dsn-selector-item:hover {
+  background-color: #e5e7eb !important;
+}
+
+.dsn-selector-item.selected {
+  border: 2px solid #3b82f6 !important;
+  background-color: #e6f7ff !important;
+}
+
+.dsn-invisible-item {
+  margin-bottom: 4px;
+  padding: 4px;
+  visibility: hidden;
+}
+
+/* Result section */
+.dsn-result-section {
+  margin-bottom: 15px; /* Increased from 20px to ensure more space for the close button */
+  background-color: #f8fafc;
+  border-radius: 6px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  flex: 0 0 auto; /* Don't grow or shrink */
+}
+
+/* Code container styling */
+.dsn-code-container {
+  padding: 2px 8px !important;
+  background-color: #ffffff !important;
+  border-radius: 4px !important;
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+  position: relative !important;
+  padding-right: 40px !important;
+  margin: 0 !important;
+  display: flex !important; /* Use flexbox layout */
+  align-items: center !important; /* Center content vertically */
+  min-height: 36px !important; /* Set a minimum height to ensure proper centering */
+}
+
+/* Ensure copy button doesn't affect content layout */
+.dsn-copy-button {
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background-color: #e2e8f0 !important;
+  border: none !important;
+  color: #475569 !important;
+  width: 30px !important; /* Slightly larger for better touchability */
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+/* Copy tooltip styling */
+.dsn-copy-tooltip {
+  position: absolute;
+  background-color: #16a34a;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  right: 40px;  /* Position to the left of the copy button */
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Add a small triangle to the tooltip */
+.dsn-copy-tooltip:after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent #16a34a;
+}
+
+/* Show the tooltip */
+.dsn-copy-tooltip.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Apply green highlight when copied */
+.dsn-copy-button.copied {
+  color: #16a34a !important;
+  background-color: #dcfce7 !important;
+}
+
+/* Create copy icon using pure CSS for better compatibility */
+.dsn-copy-icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+
+/* Front document */
+.dsn-copy-front {
+  position: absolute !important;
+  top: -1px;
+  right: -1px;
+  width: 12px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+  z-index: 2;
+}
+
+/* Back document - L shape */
+.dsn-copy-back {
+  position: absolute !important;
+  bottom: 0px;
+  left: 1px;
+  width: 10px;
+  height: 12px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  z-index: 1;
+}
+
+.dsn-copy-back:after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: -2px;
+  width: 9px;
+  height: 0px;
+  border-bottom: 2px solid currentColor;
+}
+
+/* Remove conflicting .dsn-code-container::after rule */
+.dsn-code-container::after {
+  display: none !important; /* This one needs !important to override the other ::after rule */
+}
+
+/* Combined selector styling improvements */
+.dsn-combined-selector {
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace !important;
+  font-size: 14px !important;
+  color: #334155 !important;
+  width: 100% !important;
+  min-height: 24px !important;
+  display: flex !important; /* Change to flex for better alignment */
+  align-items: center !important; /* Center text vertically */
+  outline: none !important;
+  white-space: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 4px 0 !important; /* Add vertical padding for better centering */
+  margin: 0 !important;
+  background: none !important;
+  border: none !important;
+  text-align: left !important;
+  word-break: keep-all !important;
+  word-wrap: normal !important;
+  line-height: 1.5 !important; /* Standardize line height */
+}
+
+/* Add an edit indicator */
+.dsn-code-container::after {
+  content: ''; 
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2394a3b8'%3E%3Cpath d='M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z'/%3E%3C/svg%3E");
+  background-size: contain;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.dsn-code-container:hover::after {
+  opacity: 0.7;
+}
+
+/* Combinator symbol and description styling */
+.dsn-combinator-symbol {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.dsn-combinator-description {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Button container */
+.dsn-button-container {
+  display: none;
+}
+
+/* Match count styling */
+.dsn-match-count {
+  display: inline-block !important;
+  margin: 8px 0 0 5px !important;
+  padding: 2px 8px !important;
+  border-radius: 4px !important;
+  background-color: #f1f5f9 !important;
+  color: #718096 !important;
+  font-size: 13px !important;
+  line-height: normal !important;
+  font-weight: normal !important;
+  border: none !important;
+  text-align: left !important;
+}
+
+/* Close button at the bottom of the panel */
+.dsn-panel-close-button {
+  position: absolute !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  padding: 8px 16px !important;
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: background-color 0.2s !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  margin: 0 !important;
+  outline: none !important;
+  text-align: center !important;
+  line-height: normal !important;
+}
+
+.dsn-panel-close-button:hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .dsn-panel-container {
+    background-color: #2d3748 !important;
+    color: #f7fafc !important;
+  }
+  .dsn-panel-header {
+    background: linear-gradient(to right, #4c51bf, #2c5282) !important;
+  }
+}
+
+/* Pseudo-element message styling - updated to match ID message style */
+.dsn-pseudo-message {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border-left: 4px solid #0ea5e9;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  line-height: 1.4;
+}
+
+.dsn-pseudo-message:before {
+  content: '::';
+  margin-right: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  font-family: monospace;
+}
+
+/* Style for combined selectors that contain pseudo-elements */
+.dsn-combined-selector.dsn-has-pseudo {
+  color: #9333ea !important; /* Use the same purple color as the pseudo-element items */
+}
+
+/* Highlighted element styling */
+.dsn-highlighted-element {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+  position: relative !important;
+}
+
+/* Add styling for currently selected card in hierarchy */
+.dsn-card-header.dsn-currently-selected {
+  background-color: #dbeafe !important; /* Light blue background */
+  border-left: 4px solid #3b82f6 !important; /* Blue left border */
+  font-weight: bold !important;
+  position: relative !important;
+}
+
+.dsn-card-content.dsn-card-content-selected {
+  border-left: 4px solid #3b82f6 !important;
+  background-color: #f0f7ff !important; /* Lighter blue than the header */
+}
+
+/* Ensure the selected state takes precedence over even/odd styling */
+.dsn-card-header.dsn-currently-selected.dsn-card-header-even {
+  background-color: #dbeafe !important;
+}
+
+.dsn-card-header-selected.dsn-currently-selected {
+  background-color: #bfdbfe !important; /* Slightly darker blue for the target element */
+}
+
+/* ID selector message styling - similar to pseudo-element message but with different colors */
+.dsn-id-message {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border-left: 4px solid #0ea5e9;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  line-height: 1.4;
+}
+
+.dsn-id-message:before {
+  content: '#';
+  margin-right: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  font-family: monospace;
+}
+
+/* Add styling for the context menu */
+.dsn-context-menu {
+  display: none;
+  position: absolute;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 2147483648; /* Max z-index */
+  min-width: 160px;
+  padding: 5px 0;
+}
+
+.dsn-context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dsn-context-menu li {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #334155;
+  transition: background-color 0.1s;
+}
+
+.dsn-context-menu li:hover {
+  background-color: #f1f5f9;
+}
+
+.dsn-context-menu li:active {
+  background-color: #e2e8f0;
+}
+
+/* Separator for combinator section */
+.dsn-separator {
+  height: 1px;
+  background-color: #e2e8f0;
+  margin: 12px 0;
+}
+
+.dsn-combinator-section {
+  padding-top: 4px;
+}
+
+/* Styling for the pseudo-class categories */
+.dsn-pseudo-class-category {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  padding: 6px 8px 4px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-top: 8px;
+  background-color: #f8fafc;
+  border-radius: 4px 4px 0 0;
+}
+
+/* Styling for :not() modified class selectors */
+.dsn-selector-item[data-not-modifier="true"] {
+  color: #b91c1c !important; /* Red color for not-modified selectors */
+}
+
+/* Styling for nth-pseudo-class items */
+.dsn-selector-item[data-selector-type="nth-pseudo-class"] {
+  color: #0891b2 !important; /* Cyan color for nth pseudo classes */
+}
+
+/* Modal dialog for nth value configuration */
+.dsn-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2147483649; /* Above context menu */
+}
+
+.dsn-modal-content {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 400px;
+  max-width: 90%;
+  padding: 20px;
+}
+
+.dsn-modal-title {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.dsn-nth-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 16px;
+  margin: 16px 0;
+  font-family: monospace;
+}
+
+.dsn-modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.dsn-modal-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dsn-modal-cancel {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+.dsn-modal-apply {
+  background-color: #3b82f6;
+  color: white;
+}
+
+/* Styling for pseudo-class items (in the class list) */
+.dsn-pseudo-class-item {
+  color: #0891b2 !important; /* Cyan color for pseudo-classes */
+  border-top: 1px dashed #e2e8f0 !important; /* Add subtle separator */
+}
+
+/* Group pseudo-class items */
+.dsn-pseudo-class-item:first-of-type {
+  margin-top: 12px !important;
+  position: relative !important;
+}
+
+/* Add a "Pseudo-classes:" label before the first pseudo-class */
+.dsn-pseudo-class-item:first-of-type::before {
+  content: "Pseudo-classes:";
+  display: block;
+  position: absolute;
+  top: -18px;
+  left: 0;
+  font-size: 11px;
+  color: #64748b;
+  font-style: italic;
+  font-family: system-ui, sans-serif !important;
+}
+
+/* Vertical ellipsis icon styling - update to square button with background */
+.dsn-ellipsis-icon {
+  position: absolute !important;
+  right: 6px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 18px !important; /* Slightly wider */
+  height: 18px !important; /* Slightly taller */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  cursor: pointer !important;
+  opacity: 0.8 !important;
+  visibility: hidden !important; /* Hidden by default, shown on hover */
+  background-color: #f0f0f0 !important; /* Light background to cover text */
+  border-radius: 3px !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05) !important; /* Subtle border */
+  z-index: 5 !important; /* Ensure it's above the text */
+}
+
+/* Three dots making up the ellipsis */
+.dsn-ellipsis-icon::before,
+.dsn-ellipsis-icon::after,
+.dsn-ellipsis-icon span {
+  content: '' !important;
+  width: 4px !important;
+  height: 4px !important;
+  background-color: #64748b !important;
+  border-radius: 50% !important;
+  margin: 1px 0 !important;
+}
+
+/* Show ellipsis on hover */
+.dsn-selector-item:hover .dsn-ellipsis-icon {
+  visibility: visible !important;
+}
+
+/* Active ellipsis state */
+.dsn-ellipsis-icon:hover {
+  opacity: 1 !important;
+  background-color: #e2e8f0 !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) !important; /* Darker border on hover */
+  transform: translateY(-50%) scale(1.05) !important; /* Slight grow effect */
+}
+
+/* Add padding to the right side of selector items to accommodate the button */
+.dsn-selector-item {
+  /* ...existing code... */
+  padding-right: 28px !important; /* Increased right padding to make space for button */
+}
+
+/* Context menu for selector items */
+.dsn-item-context-menu {
+  position: fixed !important; /* Changed from absolute to fixed for proper viewport positioning */
+  z-index: 2147483648 !important; /* Max z-index to appear on top */
+  background-color: white !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+  min-width: 280px !important; /* Increase width to accommodate the dropdown */
+  display: none;
+  padding: 8px !important; /* Increased top/bottom padding */
+  /* Position will be set dynamically by JS */
+  /* Ensure the background is solid to block elements underneath */
+  opacity: 1 !important;
+  isolation: isolate !important;
+}
+
+/* Menu heading */
+.dsn-menu-heading {
+  padding: 6px 16px !important; /* Increased padding */
+  font-size: 12px !important;
+  font-weight: bold !important;
+  color: #64748b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  margin-bottom: 10px !important; /* Increased margin */
+  text-transform: uppercase !important;
+}
+
+/* Menu item with full width (for checkbox items) */
+.dsn-full-width-menu-item {
+  background-color: #f5f9ff !important;
+  margin-bottom: 8px !important; /* More spacing */
+  padding: 10px 16px !important; /* Increased padding */
+}
+
+.dsn-full-width-menu-item:hover {
+  background-color: #edf2ff !important;
+}
+
+/* Menu group for related controls */
+.dsn-menu-group {
+  padding: 6px 16px 12px !important; /* Increased padding */
+  margin-bottom: 6px !important;
+}
+
+/* Select container (wrapper for the dropdown with arrow) */
+.dsn-select-container {
+  position: relative !important;
+  width: 100% !important;
+  margin-bottom: 12px !important; /* More spacing between controls */
+}
+
+/* Dropdown arrow for select */
+.dsn-select-arrow {
+  position: absolute !important;
+  top: 50% !important;
+  right: 8px !important;
+  transform: translateY(-50%) !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-left: 5px solid transparent !important;
+  border-right: 5px solid transparent !important;
+  border-top: 6px solid #64748b !important;
+  pointer-events: none !important;
+}
+
+/* Attribute operator dropdown */
+.dsn-attribute-operator {
+  width: 100% !important;
+  padding: 8px 24px 8px 10px !important; /* Increased right padding for arrow */
+  font-size: 13px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+  background-color: white !important;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="5"><path d="M0 0h10l-5 5z" fill="black"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  color: #334155 !important;
+  cursor: pointer !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+}
+
+.dsn-attribute-operator:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Input container with reset button */
+.dsn-input-container {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+/* Attribute value input field */
+.dsn-attribute-value {
+  flex-grow: 1 !important;
+  padding: 8px 30px 8px 10px !important; /* Space for reset button */
+  font-size: 13px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+  background-color: white !important;
+  color: #334155 !important;
+  font-family: monospace !important;
+  line-height: 1.15 !important; /* Add consistent line height */
+  height: 34px !important; /* Set a fixed height for consistency */
+  box-sizing: border-box !important;
+}
+
+.dsn-attribute-value:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Reset button for attribute value - fixed positioning to ensure vertical centering */
+.dsn-reset-button {
+  position: absolute !important;
+  right: 0 !important;
+  top: 10px !important;
+  transform: translateY(-50%) !important;
+  background: transparent !important;
+  border: none !important;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  color: black !important; /* Slightly darker color for better visibility */
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important; /* Remove margin-right */
+  font-size: 16px !important;
+  font-weight: bold;
+  text-align: center !important;
+  line-height: 1 !important; /* Keep line height at 1 for button content */
+  z-index: 5 !important; /* Ensure button stays above the input */
+}
+
+.dsn-reset-button:hover {
+  color: #3b82f6 !important;
+  background-color: #e9effd !important;
+  transform: translateY(-50%) scale(1.1) !important;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Menu label */
+.dsn-menu-label {
+  display: block !important;
+  font-size: 11px !important;
+  color: #64748b !important;
+  margin-bottom: 4px !important;
+}
+
+/* Menu divider */
+.dsn-menu-divider {
+  height: 1px !important;
+  background-color: #f1f5f9 !important;
+  margin: 6px 0 !important;
+}
+
+/* Attribute operator dropdown */
+.dsn-attribute-operator {
+  width: 100% !important;
+  padding: 4px 6px !important;
+  font-size: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+  background-color: white !important;
+  color: #334155 !important;
+  cursor: pointer !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+}
+
+.dsn-attribute-operator:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Menu item in context menu */
+.dsn-menu-item {
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  display: flex !important;
+  align-items: center !important;
+  font-size: 12px !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  color: #334155 !important;
+  border: none !important;
+  width: 100% !important;
+  text-align: left !important;
+  background-color: transparent !important;
+}
+
+.dsn-menu-item:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Remove the close button styles as it's no longer needed */
+.dsn-menu-close {
+  display: none !important;
+}
+
+/* Checkbox styling for menu items */
+.dsn-menu-checkbox {
+  margin-right: 8px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 14px !important;
+  height: 14px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 3px !important;
+  position: relative !important;
+  cursor: pointer !important;
+}
+
+.dsn-menu-checkbox:checked {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.dsn-menu-checkbox:checked::after {
+  content: '' !important;
+  position: absolute !important;
+  left: 4px !important;
+  top: 1px !important;
+  width: 4px !important;
+  height: 8px !important;
+  border: solid white !important;
+  border-width: 0 2px 2px 0 !important;
+  transform: rotate(45deg) !important;
+}
+
+/* Style for element text with selected selectors */
+.dsn-element-selected {
+  font-weight: bold !important;
+}
+
+/* Ensure all interactive menu elements have proper event isolation */
+.dsn-menu-item,
+.dsn-attribute-operator,
+.dsn-attribute-value,
+.dsn-reset-button,
+.dsn-menu-checkbox {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Improve styling for :not() modified selectors */
+.dsn-has-not-modifier {
+  color: #b91c1c !important; /* Red color to indicate negation */
+  position: relative !important; 
+}
+
+/* Add a visual indicator for items with not modifier */
+.dsn-has-not-modifier::before {
+  content: '¬' !important;
+  position: absolute !important;
+  left: -4px !important;
+  font-size: 12px !important;
+  color: #b91c1c !important;
+  font-weight: bold !important;
+  opacity: 0.8 !important;
+}
+
+/* Ensure the checkbox label is clear in menu */
+.dsn-not-toggle + span {
+  user-select: none !important;
+}
+
+/* Styling for disabled combinator selectors */
+.dsn-combinator-disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  position: relative !important;
+  background-color: #f0f0f0 !important;
+  color: #94a3b8 !important; /* Grayed out text */
+}
+
+/* Add "no" slash icon overlay */
+.dsn-combinator-disabled::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23ef4444' stroke-width='1.5'/%3E%3Cline x1='5' y1='5' x2='19' y2='19' stroke='%23ef4444' stroke-width='1.5'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 16px !important;
+  z-index: 2 !important;
+  pointer-events: none !important;
+}
+
+/* Display the tooltip when hovering over a disabled combinator */
+.dsn-combinator-disabled:hover .dsn-tooltip {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Tooltip styling */
+.dsn-tooltip {
+  visibility: hidden !important;
+  position: absolute !important;
+  bottom: 125% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background-color: #475569 !important;
+  color: white !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  z-index: 10 !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s !important;
+  pointer-events: none !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  font-style: normal !important;
+  font-weight: normal !important;
+}
+
+/* Triangle pointer for tooltip */
+.dsn-tooltip::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 100% !important;
+  left: 50% !important;
+  margin-left: -5px !important;
+  border-width: 5px !important;
+  border-style: solid !important;
+  border-color: #475569 transparent transparent transparent !important;
+  pointer-events: none !important;
+}
+
+/* Override the hover effect for disabled combinators */
+.dsn-combinator-disabled:hover {
+  background-color: #f0f0f0 !important;
+}
