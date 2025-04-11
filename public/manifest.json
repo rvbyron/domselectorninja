@@ -22,7 +22,6 @@
   },
   "content_scripts": [
     {
-      // This content script runs on all webpages the user visits
       "matches": ["<all_urls>"],
       "js": ["content.js"]
     }
