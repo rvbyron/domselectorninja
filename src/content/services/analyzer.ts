@@ -1,117 +1,127 @@
-import { ElementData, AncestorElement } from '../utils/types';
-import { registerAnalyzeFunction } from '../shared';
+/**
+ * DOM analyzer service
+ */
+
+import { ElementData, AncestorElement } from '@utils/types';
 import { UIManager } from './ui-manager';
-import { generateOptimalSelector } from '../utils/selector-builder';
-import { Panel } from '../components/panel';
 
-console.debug('DSN: Analyzer module loaded');
-
-/**
- * Analyzes the selected DOM element
- */
-function analyzeElement(event?: Event): void {
-  console.debug('DSN: Beginning element selection process...');
-  
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
+export class DOMAnalyzer {
+  /**
+   * Analyze an element and extract its key properties
+   */
+  static analyzeElement(element: Element): ElementData {
+    const attributes: Record<string, string> = {};
     
-    // Only process clicks, not other events
-    if (event.type !== 'click') {
-      return;
-    }
-    
-    const clickEvent = event as MouseEvent;
-    const targetElement = document.elementFromPoint(
-      clickEvent.clientX, 
-      clickEvent.clientY
-    ) as HTMLElement;
-    
-    if (targetElement) {
-      const result = processElement(targetElement);
-      handleAnalysisResult(result, targetElement);
-    }
-  }
-}
-
-/**
- * Process an individual element and generate analysis
- */
-function processElement(element: HTMLElement) {
-  try {
-    console.debug('DSN: Processing element:', element);
-    
-    // Create element data object
-    const elementData: ElementData = {
-      id: element.id || '',
-      tagName: element.tagName,
-      classNames: Array.from(element.classList),
-      attributes: {}
-    };
-    
-    // Collect attributes
+    // Extract all attributes
     Array.from(element.attributes).forEach(attr => {
-      elementData.attributes[attr.name] = attr.value;
-    });
-    
-    // Get ancestor elements
-    const ancestorElements = getAncestors(element);
-    
-    return { elementData, ancestorElements };
-  } catch (error) {
-    console.error('DSN: Error processing element:', error);
-    return null;
-  }
-}
-
-/**
- * Get ancestor elements of the target element
- */
-function getAncestors(element: HTMLElement): AncestorElement[] {
-  const ancestors: AncestorElement[] = [];
-  let current = element.parentElement;
-  
-  while (current && current !== document.documentElement) {
-    ancestors.push({
-      tagName: current.tagName,
-      id: current.id,
-      className: current.className,
-      attributes: {}
-    });
-    
-    // Collect attributes
-    Array.from(current.attributes).forEach(attr => {
-      if (!ancestors[ancestors.length - 1].attributes) {
-        ancestors[ancestors.length - 1].attributes = {};
+      // Skip id and class attributes as they're already displayed in separate lists
+      if (attr.name === 'id' || attr.name === 'class') {
+        return;
       }
-      ancestors[ancestors.length - 1].attributes![attr.name] = attr.value;
+      
+      // Skip empty style attributes
+      if (attr.name === 'style' && (!attr.value || attr.value.trim() === '')) {
+        return;
+      }
+      attributes[attr.name] = attr.value;
     });
+
+    return {
+      tagName: element.tagName,
+      id: element.id,
+      classNames: element.classList.length ? Array.from(element.classList) : [],
+      attributes: attributes
+    };
+  }
+
+  /**
+   * Get all ancestor elements of the given element
+   */
+  static getAncestors(element: Element): AncestorElement[] {
+    const ancestors: AncestorElement[] = [];
+    let current = element.parentElement;
     
-    current = current.parentElement;
+    while (current) {
+      const attributes: Record<string, string> = {};
+      
+      // Extract all attributes for the ancestor
+      Array.from(current.attributes).forEach(attr => {
+        // Skip id and class attributes as they're already displayed in separate lists
+        if (attr.name === 'id' || attr.name === 'class') {
+          return;
+        }
+        
+        // Skip empty style attributes
+        if (attr.name === 'style' && (!attr.value || attr.value.trim() === '')) {
+          return;
+        }
+        attributes[attr.name] = attr.value;
+      });
+      
+      // Create HTML preview for this ancestor
+      const htmlPreview = this.createHtmlPreview(current);
+      
+      ancestors.push({
+        tagName: current.tagName,
+        id: current.id,
+        className: current.className,
+        attributes: attributes,
+        htmlPreview: htmlPreview
+      });
+      
+      current = current.parentElement;
+    }
+    
+    return ancestors;
   }
   
-  return ancestors;
-}
-
-/**
- * Handle the result of element analysis
- */
-function handleAnalysisResult(result: any, element: HTMLElement): void {
-  if (result) {
-    console.debug('DSN: Analysis successful:', result);
-    UIManager.highlightElement(element);
+  /**
+   * Create a simplified HTML preview string for an element
+   */
+  private static createHtmlPreview(element: Element): string {
+    // Create a simple HTML representation
+    const tagName = element.tagName.toLowerCase();
     
-    // Create and inject the panel using the Panel class
-    Panel.injectSelectorPanel(result.elementData, result.ancestorElements);
-  } else {
-    console.error('DSN: Analysis failed');
+    // Build attribute string with all attributes
+    let attributesStr = '';
+    Array.from(element.attributes).forEach(attr => {
+      // Include all attributes (including id and class)
+      let value = attr.value;
+      
+      // Truncate long attribute values
+      if (value.length > 30) {
+        value = value.substring(0, 27) + '...';
+      }
+      
+      // Escape quotes in attribute values
+      value = value.replace(/"/g, '&quot;');
+      
+      attributesStr += ` ${attr.name}="${value}"`;
+    });
+    
+    // Get a preview of the inner content if present
+    let contentPreview = '';
+    if (element.textContent) {
+      // Limit the length and sanitize text content
+      const text = element.textContent.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      contentPreview = text.length > 20 ? `${text.substring(0, 20)}...` : text;
+    }
+    
+    return `<${tagName}${attributesStr}>${contentPreview ? contentPreview : ''}</${tagName}>`;
   }
-}
-
-/**
- * Initialize the analyzer module
- */
-export function initializeAnalyzer(): void {
-  console.debug('DSN: Initializing analyzer...');
-  registerAnalyzeFunction(analyzeElement);
+  
+  /**
+   * Highlight an element on the page
+   */
+  public static highlightElement(element: Element): void {
+    // First clear any existing highlights
+    UIManager.clearHighlightedElements();
+    
+    // Then add our highlight class
+    element.classList.add('dsn-highlighted-element');
+    
+    // Could also add outline style directly
+    (element as HTMLElement).style.outline = '2px solid #3b82f6';
+    (element as HTMLElement).style.outlineOffset = '2px';
+  }
 }
