@@ -15,7 +15,6 @@
 
 /* CSS Reset for panel elements to prevent inheritance from the target page */
 .dsn-panel-container * {
-  all: initial;
   box-sizing: border-box !important;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
   line-height: normal !important;
@@ -396,6 +395,18 @@
   line-height: 1.2 !important; /* Consistent line height */
   position: relative !important; /* For ellipsis icon positioning */
   padding-right: 28px !important; /* Increased right padding to make space for button */
+}
+
+/* Add to your CSS file */
+.dsn-selector-item.dsn-selected {
+  background-color: rgba(0, 123, 255, 0.2) !important;
+  border-left: 3px solid #0077cc !important;
+  font-weight: bold !important;
+}
+
+.dsn-combinator-disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
 }
 
 /* Pseudo item (now part of core section) */
@@ -979,7 +990,6 @@
 
 /* Add padding to the right side of selector items to accommodate the button */
 .dsn-selector-item {
-  /* ...existing code... */
   padding-right: 28px !important; /* Increased right padding to make space for button */
 }
 
@@ -1227,6 +1237,15 @@
 /* Style for element text with selected selectors */
 .dsn-element-selected {
   font-weight: bold !important;
+  border-left: 3px solid #3b82f6 !important;
+  padding-left: 6px !important;
+  background-color: #eff6ff !important; /* Light blue background */
+}
+
+/* Style for element text when selected */
+.dsn-element-text-selected {
+  font-weight: bold !important;
+  color: #2563eb !important; /* Deeper blue color for better visibility */
 }
 
 /* Ensure all interactive menu elements have proper event isolation */

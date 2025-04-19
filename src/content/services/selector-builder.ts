@@ -2,13 +2,277 @@
  * CSS selector generation functionality
  */
 import { SelectorItem, CombinatorSelector, ElementData, AncestorElement } from '../types';
+import { PSEUDO_ELEMENTS, PSEUDO_CLASSES, COMBINATOR_SELECTORS, SELECTOR_TYPE_ORDER } from '../constants/selector-constants';
 
 // Store selected selectors for each element in the hierarchy, mapping element index to list of selected selectors
 export const selectedSelectors = new Map<string, Set<string>>();
 
+// Expose selected selectors to window for cross-file access
+(window as any).dsnSelectedSelectors = selectedSelectors;
+
 // Flags for state tracking
 export let isPseudoElementSelected = false;
 export let isIdSelectorSelected = false;
+
+// Keep track of which pseudo-element is selected (null if none)
+export let selectedPseudoElement: string | null = null;
+
+// Listen for reset events
+document.addEventListener('dsn-reset-selectors', () => {
+  // Clear all selectors
+  selectedSelectors.clear();
+  
+  // Reset state flags
+  isPseudoElementSelected = false;
+  isIdSelectorSelected = false;
+  selectedPseudoElement = null;
+  
+  // Update the combined selector display
+  updateCombinedSelector();
+});
+
+/**
+ * Select a selector for an element
+ */
+export function selectSelector(elementIndex: string, selector: string, selectorType: string): void {
+  console.log(`DSN-DEBUG: Selecting selector: ${selector}, type: ${selectorType}, for element: ${elementIndex}`);
+  
+  // Create selector set if it doesn't exist for this element
+  if (!selectedSelectors.has(elementIndex)) {
+    selectedSelectors.set(elementIndex, new Set());
+  }
+  
+  const selectorSet = selectedSelectors.get(elementIndex);
+  if (!selectorSet) return;
+
+  // Handle mutual exclusivity between tag and ID selectors
+  if (selectorType === 'id') {
+    isIdSelectorSelected = true;
+    
+    // If an ID is selected, clear any previously selected tag selectors
+    const tagsToRemove: string[] = [];
+    selectorSet.forEach(sel => {
+      if (sel.startsWith('tag:')) {
+        tagsToRemove.push(sel);
+      }
+    });
+    
+    tagsToRemove.forEach(tag => selectorSet.delete(tag));
+  } else if (selectorType === 'tag') {
+    // If a tag is selected, clear any previously selected ID selectors
+    const idsToRemove: string[] = [];
+    selectorSet.forEach(sel => {
+      if (sel.startsWith('id:')) {
+        idsToRemove.push(sel);
+        isIdSelectorSelected = false;
+      }
+    });
+    
+    idsToRemove.forEach(id => selectorSet.delete(id));
+  }
+  
+  // Handle pseudo-element exclusivity
+  if (selectorType === 'pseudo') {
+    // If we're selecting a new pseudo-element
+    if (selector !== selectedPseudoElement) {
+      // If there was a previously selected pseudo-element, remove it
+      if (selectedPseudoElement) {
+        selectorSet.delete(`pseudo:${selectedPseudoElement}`);
+      }
+      
+      // Set the new selected pseudo-element
+      selectedPseudoElement = selector;
+      isPseudoElementSelected = true;
+    }
+  }
+  
+  // Add the selector with its type prefix for easy identification
+  selectorSet.add(`${selectorType}:${selector}`);
+  
+  // Update the combined selector
+  updateCombinedSelector();
+  
+  // Trigger an event so other components can react to selector changes
+  const event = new CustomEvent('dsn-selector-changed', {
+    detail: { elementIndex, selector, selectorType, selected: true }
+  });
+  document.dispatchEvent(event);
+}
+
+/**
+ * Deselect a selector for an element
+ */
+export function deselectSelector(elementIndex: string, selector: string, selectorType: string): void {
+  const selectorSet = selectedSelectors.get(elementIndex);
+  if (!selectorSet) return;
+  
+  // Remove the selector
+  selectorSet.delete(`${selectorType}:${selector}`);
+  
+  // Update flags
+  if (selectorType === 'id') {
+    isIdSelectorSelected = false;
+  }
+  
+  if (selectorType === 'pseudo' && selector === selectedPseudoElement) {
+    selectedPseudoElement = null;
+    isPseudoElementSelected = false;
+  }
+  
+  // Trigger an event so other components can react to selector changes
+  const event = new CustomEvent('dsn-selector-changed', {
+    detail: { elementIndex, selector, selectorType, selected: false }
+  });
+  document.dispatchEvent(event);
+  
+  // Update the combined selector
+  updateCombinedSelector();
+}
+
+/**
+ * Update the combined selector display
+ */
+export function updateCombinedSelector(): void {
+  const combinedSelectorElement = document.getElementById('dsn-combined-selector');
+  if (!combinedSelectorElement) return;
+  
+  console.log('DSN-DEBUG: Updating combined selector with map:', Array.from(selectedSelectors.entries()));
+  
+  // Get all selected selectors and sort by element index
+  const allSelectors: {index: string, selectors: string[]}[] = [];
+  
+  selectedSelectors.forEach((selectorSet, elementIndex) => {
+    if (selectorSet.size > 0) {
+      // Group selectors by their type to ensure proper ordering
+      const tagSelectors: string[] = [];
+      const idSelectors: string[] = [];
+      const classSelectors: string[] = [];
+      const attrSelectors: string[] = [];
+      const pseudoClassSelectors: string[] = [];
+      const pseudoElementSelectors: string[] = [];
+      
+      // Sort selectors into appropriate groups
+      selectorSet.forEach(sel => {
+        const [type, ...parts] = sel.split(':');
+        const selector = parts.join(':');
+        
+        switch(type) {
+          case 'tag':
+            tagSelectors.push(selector);
+            break;
+          case 'id':
+            idSelectors.push(selector);
+            break;
+          case 'class':
+            classSelectors.push(selector);
+            break;
+          case 'attribute':
+            attrSelectors.push(selector);
+            break;
+          case 'pseudo-class':
+            pseudoClassSelectors.push(selector);
+            break;
+          case 'pseudo':
+            pseudoElementSelectors.push(selector);
+            break;
+        }
+      });
+      
+      console.log('DSN-DEBUG: Selector groups for element', elementIndex, {
+        tagSelectors,
+        idSelectors,
+        classSelectors,
+        attrSelectors,
+        pseudoClassSelectors,
+        pseudoElementSelectors
+      });
+      
+      // Build element selector with correct precedence
+      const elementSelector = [
+        ...tagSelectors,           // 1. Tag names first (div, span)
+        ...idSelectors,            // 2. Then IDs (#id)
+        ...classSelectors,         // 3. Then classes (.class)
+        ...attrSelectors,          // 4. Then attributes ([attr=val])
+        ...pseudoClassSelectors,   // 5. Then pseudo-classes (:hover)
+        ...pseudoElementSelectors  // 6. Pseudo-elements last (::before)
+      ];
+      
+      allSelectors.push({
+        index: elementIndex,
+        selectors: elementSelector
+      });
+    }
+  });
+  
+  // Sort elements by index
+  allSelectors.sort((a, b) => {
+    // Handle 'selected' element specially - should come last
+    if (a.index === 'selected') return 1;
+    if (b.index === 'selected') return -1;
+    
+    // Otherwise sort numerically
+    return parseInt(a.index) - parseInt(b.index);
+  });
+  
+  // Build the combined selector
+  let combinedSelector = '';
+  
+  allSelectors.forEach((element, i) => {
+    // Add combinator between elements if necessary
+    if (i > 0) {
+      combinedSelector += ' > '; // Default to child combinator for now
+    }
+    
+    // Join the element's selectors
+    combinedSelector += element.selectors.join('');
+  });
+  
+  // Set the combined selector text
+  if (combinedSelector) {
+    combinedSelectorElement.textContent = combinedSelector;
+    
+    // Update match count
+    updateMatchCount(combinedSelector);
+  } else {
+    combinedSelectorElement.textContent = 'No elements selected';
+    
+    const matchCountElement = document.getElementById('dsn-match-count');
+    if (matchCountElement) {
+      matchCountElement.textContent = 'No matches found on page';
+    }
+  }
+}
+
+/**
+ * Update the match count for a selector
+ */
+function updateMatchCount(selector: string): void {
+  const matchCountElement = document.getElementById('dsn-match-count');
+  if (!matchCountElement) return;
+  
+  try {
+    // Try to query the document with the selector
+    const matches = document.querySelectorAll(selector);
+    const count = matches.length;
+    
+    // Update the match count text
+    if (count === 0) {
+      matchCountElement.textContent = 'No matches found on page';
+    } else if (count === 1) {
+      matchCountElement.textContent = '1 match found on page';
+    } else {
+      matchCountElement.textContent = `${count} matches found on page`;
+    }
+    
+    // Add classes to highlight matching elements
+    matches.forEach(el => {
+      el.classList.add('dsn-selector-match');
+    });
+  } catch (error) {
+    // Invalid selector
+    matchCountElement.textContent = 'Invalid selector';
+  }
+}
 
 /**
  * Generate selector lists for an element
@@ -34,30 +298,12 @@ export function generateSelectorLists(element: AncestorElement | ElementData, in
     });
   }
   
-  // Then add pseudo-elements with tag name prepended
-  const pseudoElements = [
-    '::after',
-    '::before',
-    '::first-letter',
-    '::first-line',
-    '::selection',
-    '::placeholder',
-    '::marker',
-    '::backdrop',
-    '::cue'
-  ];
-  
-  pseudoElements.forEach(pseudo => {
-    // Only add pseudo-elements if we have a tag name
-    if (tagName) {
-      coreSelectors.push({
-        // Store just the pseudo part to use in selector construction
-        selector: pseudo,
-        // Store the combined version for display purposes
-        displaySelector: `${tagName}${pseudo}`,
-        type: 'pseudo'
-      });
-    }
+  // Add pseudo-elements without tag name prepended
+  PSEUDO_ELEMENTS.forEach(pseudo => {
+    coreSelectors.push({
+      selector: pseudo,
+      type: 'pseudo'
+    });
   });
   
   // Generate class selectors
@@ -84,25 +330,7 @@ export function generateSelectorLists(element: AncestorElement | ElementData, in
   }
 
   // Add pseudo-classes to the class selectors list
-  const pseudoClasses = [
-    // State pseudo-classes
-    ':active', ':focus', ':focus-visible', ':focus-within', ':hover', ':target', ':visited',
-    // Form pseudo-classes
-    ':checked', ':disabled', ':enabled', ':indeterminate', ':placeholder-shown', ':read-only', 
-    ':read-write', ':required', ':optional', ':valid', ':invalid',
-    // Structural pseudo-classes
-    ':empty', ':first-child', ':first-of-type', ':last-child', ':last-of-type', 
-    ':only-child', ':only-of-type', ':root',
-    // Nth pseudo-classes
-    ':nth-child(n)', ':nth-last-child(n)', ':nth-of-type(n)', ':nth-last-of-type(n)',
-    // Other pseudo-classes
-    ':fullscreen', ':defined'
-  ];
-
-  // Add all pseudo-classes to the class selectors
-  pseudoClasses.forEach(pseudoClass => {
-    classSelectors.push(pseudoClass);
-  });
+  classSelectors.push(...PSEUDO_CLASSES);
   
   // Generate attribute selectors
   const attributeSelectors: string[] = [];
@@ -120,16 +348,8 @@ export function generateSelectorLists(element: AncestorElement | ElementData, in
     });
   }
   
-  // Define combinator selectors
-  const combinatorSelectors: CombinatorSelector[] = [
-    { value: ' ', display: 'Descendant' },
-    { value: '>', display: 'Child' },
-    { value: '+', display: 'Adjacent', disabled: true, tooltip: 'Adjacent combinator is not implemented yet' },
-    { value: '~', display: 'Sibling', disabled: true, tooltip: 'Sibling combinator is not implemented yet' }
-  ];
-  
   // Build the HTML for the selector lists
-  return buildSelectorListsHTML(coreSelectors, classSelectors, attributeSelectors, combinatorSelectors, index);
+  return buildSelectorListsHTML(coreSelectors, classSelectors, attributeSelectors, COMBINATOR_SELECTORS, index);
 }
 
 /**
@@ -152,8 +372,8 @@ function buildSelectorListsHTML(
             <li class="dsn-selector-item${item.type === 'pseudo' ? ' dsn-pseudo-item' : ''}" 
                 data-selector="${encodeURIComponent(item.selector)}" 
                 data-element-index="${index}"
-                ${item.type === 'pseudo' ? 'data-selector-type="pseudo"' : ''}>
-              ${item.displaySelector || item.selector}
+                data-selector-type="${item.type}">
+              ${item.selector}
             </li>
           `).join('')}
         </ul>

@@ -4,6 +4,8 @@
 
 import { ElementData, AncestorElement } from '@utils/types';
 import { asHTMLElement } from '@utils/dom-types';
+import { PSEUDO_ELEMENTS, PSEUDO_CLASSES, COMBINATOR_SELECTORS } from '../constants/selector-constants';
+import { selectSelector, deselectSelector, updateCombinedSelector } from './selector-builder';
 
 console.log('DSN-DEBUG: ui-manager.ts loaded');
 
@@ -26,6 +28,9 @@ export class UIManager {
     console.log('DSN-DEBUG: ancestors count:', ancestors.length);
     
     try {
+      // Clear all selectors before showing the panel
+      this.clearAllSelectors();
+      
       // Remove any existing panel first
       this.removeExistingPanel();
       
@@ -35,6 +40,25 @@ export class UIManager {
     } catch (error) {
       console.error('DSN-DEBUG: Error in showSelectorPanel:', error);
     }
+  }
+  
+  /**
+   * Clear all selected selectors
+   */
+  private static clearAllSelectors(): void {
+    // Reset the selected selectors map
+    if ((window as any).dsnSelectedSelectors) {
+      (window as any).dsnSelectedSelectors.clear();
+    }
+    
+    // Reset any selection flags in selector-builder
+    if (typeof deselectSelector === 'function') {
+      // Reset any global selection state
+      const event = new CustomEvent('dsn-reset-selectors');
+      document.dispatchEvent(event);
+    }
+    
+    // We'll also need to update the UI when the panel is created
   }
   
   /**
@@ -137,6 +161,7 @@ export class UIManager {
         
         // Element tag with attributes
         const elementTag = document.createElement('div');
+        elementTag.className = 'dsn-element-text'; // Add class for easy selection
         elementTag.innerHTML = this.formatElementPreview(ancestor);
         
         // Chevron for expanding
@@ -152,7 +177,7 @@ export class UIManager {
         const cardContent = document.createElement('div');
         cardContent.className = 'dsn-card-content';
         cardContent.style.display = 'none';
-        cardContent.innerHTML = this.generateSelectorOptions(ancestor);
+        cardContent.innerHTML = this.generateSelectorOptions(ancestor, index.toString());
         
         card.appendChild(cardContent);
         hierarchyContainer.appendChild(card);
@@ -169,6 +194,7 @@ export class UIManager {
       
       // Element tag with attributes
       const selectedElementTag = document.createElement('div');
+      selectedElementTag.className = 'dsn-element-text'; // Add class for easy selection
       selectedElementTag.innerHTML = this.formatElementPreview(elementData);
       
       // Chevron for expanding
@@ -185,7 +211,7 @@ export class UIManager {
       selectedContent.className = 'dsn-card-content dsn-card-content-selected';
       selectedContent.setAttribute('data-for', 'selected');
       selectedContent.style.display = 'block'; // Open by default
-      selectedContent.innerHTML = this.generateSelectorOptions(elementData);
+      selectedContent.innerHTML = this.generateSelectorOptions(elementData, 'selected');
       
       selectedCard.appendChild(selectedContent);
       hierarchyContainer.appendChild(selectedCard);
@@ -357,7 +383,7 @@ export class UIManager {
   /**
    * Generate selector options HTML for an element
    */
-  private static generateSelectorOptions(element: ElementData | AncestorElement): string {
+  private static generateSelectorOptions(element: ElementData | AncestorElement, index: string): string {
     // Interface for selector items with type information
     interface SelectorItem {
       selector: string;
@@ -384,21 +410,9 @@ export class UIManager {
     }
     
     // Add pseudo-elements to core selectors
-    const pseudoElements = [
-      '::after',
-      '::before',
-      '::first-letter',
-      '::first-line',
-      '::selection',
-      '::placeholder',
-      '::marker',
-      '::backdrop'
-    ];
-    
-    pseudoElements.forEach(pseudo => {
+    PSEUDO_ELEMENTS.forEach(pseudo => {
       coreSelectors.push({
         selector: pseudo,
-        displaySelector: `${tagName}${pseudo}`,
         type: 'pseudo'
       });
     });
@@ -419,46 +433,7 @@ export class UIManager {
     }
     
     // Add pseudo-classes to class selectors (excluding :not)
-    const pseudoClasses = [
-      // State pseudo-classes
-      ':hover',
-      ':active',
-      ':focus',
-      ':focus-visible',
-      ':focus-within',
-      ':target',
-      ':visited',
-      // Form pseudo-classes
-      ':checked',
-      ':disabled',
-      ':enabled',
-      ':indeterminate',
-      ':placeholder-shown',
-      ':required',
-      ':optional',
-      ':valid',
-      ':invalid',
-      // Structural pseudo-classes
-      ':empty',
-      ':first-child',
-      ':first-of-type',
-      ':last-child',
-      ':last-of-type',
-      ':only-child',
-      ':only-of-type',
-      ':root',
-      // Initialize nth pseudo-classes with 'odd'
-      ':nth-child(odd)',
-      ':nth-last-child(odd)',
-      ':nth-of-type(odd)',
-      ':nth-last-of-type(odd)',
-      // Other pseudo-classes
-      ':fullscreen',
-      ':defined'
-    ];
-    
-    // Add pseudo-classes to class selectors
-    pseudoClasses.forEach(pseudoClass => {
+    PSEUDO_CLASSES.forEach(pseudoClass => {
       classSelectors.push(pseudoClass);
     });
     
@@ -487,7 +462,7 @@ export class UIManager {
             ${coreSelectors.map(item => `
               <li class="dsn-selector-item${item.type === 'pseudo' ? ' dsn-pseudo-item' : ''}" 
                   data-selector="${encodeURIComponent(item.selector)}" 
-                  data-element-index="${'id' in element ? 'selected' : ''}"
+                  data-element-index="${index}"
                   data-selector-type="${item.type}">
                 ${item.displaySelector || item.selector}
               </li>
@@ -501,13 +476,11 @@ export class UIManager {
           <ul class="dsn-selector-list" data-type="class">
             ${classSelectors.length ? classSelectors.map(selector => {
               const isPseudoClass = selector.startsWith(':');
-              const isNthPseudoClass = selector.includes('(odd)');
               return `
                 <li class="dsn-selector-item${isPseudoClass ? ' dsn-pseudo-class-item' : ''}" 
                     data-selector="${encodeURIComponent(selector)}" 
-                    data-element-index="${'id' in element ? 'selected' : ''}"
-                    ${isPseudoClass ? 'data-selector-type="pseudo-class"' : ''}
-                    ${isNthPseudoClass ? 'data-selector-type="nth-pseudo-class" data-param="odd"' : ''}>
+                    data-element-index="${index}"
+                    data-selector-type="${isPseudoClass ? 'pseudo-class' : 'class'}">
                   ${selector}
                 </li>
               `;
@@ -522,7 +495,8 @@ export class UIManager {
             ${attributeSelectors.length ? attributeSelectors.map(selector => `
               <li class="dsn-selector-item" 
                   data-selector="${encodeURIComponent(selector)}" 
-                  data-element-index="${'id' in element ? 'selected' : ''}">
+                  data-element-index="${index}"
+                  data-selector-type="attribute">
                 ${selector}
                 <div class="dsn-ellipsis-icon" data-for-selector="${encodeURIComponent(selector)}"><span></span></div>
                 <div class="dsn-item-context-menu">
@@ -568,14 +542,20 @@ export class UIManager {
         <div>
           <h4 class="dsn-category-title">Combinator</h4>
           <ul class="dsn-selector-list dsn-combinator-list" data-type="combinator">
-            <li class="dsn-selector-item" data-selector=" " data-element-index="${'id' in element ? 'selected' : ''}" data-selector-type="combinator">
-              <span class="dsn-combinator-symbol">&nbsp;</span>
-              <span class="dsn-combinator-description">Descendant</span>
-            </li>
-            <li class="dsn-selector-item" data-selector=">" data-element-index="${'id' in element ? 'selected' : ''}" data-selector-type="combinator">
-              <span class="dsn-combinator-symbol">></span>
-              <span class="dsn-combinator-description">Child</span>
-            </li>
+            ${COMBINATOR_SELECTORS.map(combo => {
+              const displayChar = combo.value === ' ' ? '&nbsp;' : combo.value;
+              const disabledClass = combo.disabled ? 'dsn-combinator-disabled' : '';
+              
+              return `<li class="dsn-selector-item ${disabledClass}" 
+                        data-selector="${combo.value}" 
+                        data-element-index="${index}" 
+                        data-selector-type="combinator"
+                        ${combo.disabled ? 'data-disabled="true"' : ''}>
+                       <span class="dsn-combinator-symbol">${displayChar}</span>
+                       <span class="dsn-combinator-description">${combo.display}</span>
+                       ${combo.disabled && combo.tooltip ? `<span class="dsn-tooltip">${combo.tooltip}</span>` : ''}
+                     </li>`;
+            }).join('')}
           </ul>
         </div>
       </div>
@@ -641,6 +621,150 @@ export class UIManager {
         }
       });
     });
+    
+    // Add event handlers for selector items
+    const selectorItems = panel.querySelectorAll('.dsn-selector-item');
+    
+    selectorItems.forEach(item => {
+      const selectorElement = item as HTMLElement;
+      const selector = decodeURIComponent(selectorElement.getAttribute('data-selector') || '');
+      const elementIndex = selectorElement.getAttribute('data-element-index') || '';
+      const selectorType = selectorElement.getAttribute('data-selector-type') || '';
+      
+      // Initially none should be selected since we clear on panel open
+      selectorElement.classList.remove('dsn-selected');
+      
+      item.addEventListener('click', () => {
+        // Skip if disabled
+        if (selectorElement.hasAttribute('data-disabled') && 
+            selectorElement.getAttribute('data-disabled') === 'true') {
+          return;
+        }
+        
+        // Toggle selection state
+        if (selectorElement.classList.contains('dsn-selected')) {
+          // Deselect
+          selectorElement.classList.remove('dsn-selected');
+          deselectSelector(elementIndex, selector, selectorType);
+        } else {
+          // Select
+          selectorElement.classList.add('dsn-selected');
+          selectSelector(elementIndex, selector, selectorType);
+          
+          // If this is a pseudo-element, deselect any other selected pseudo-elements
+          if (selectorType === 'pseudo') {
+            const otherPseudoElements = panel.querySelectorAll(`.dsn-pseudo-item.dsn-selected[data-element-index="${elementIndex}"]`);
+            otherPseudoElements.forEach(el => {
+              if (el !== selectorElement) {
+                el.classList.remove('dsn-selected');
+                const otherSelector = decodeURIComponent(el.getAttribute('data-selector') || '');
+                deselectSelector(elementIndex, otherSelector, 'pseudo');
+              }
+            });
+          }
+          
+          // Handle tag/ID mutual exclusivity
+          if (selectorType === 'id') {
+            // Deselect any tag selectors when ID is selected
+            const tagSelectors = panel.querySelectorAll(`.dsn-selector-item[data-selector-type="tag"][data-element-index="${elementIndex}"].dsn-selected`);
+            tagSelectors.forEach(el => {
+              el.classList.remove('dsn-selected');
+              const tagSelector = decodeURIComponent(el.getAttribute('data-selector') || '');
+              deselectSelector(elementIndex, tagSelector, 'tag');
+            });
+          } else if (selectorType === 'tag') {
+            // Deselect any ID selectors when tag is selected
+            const idSelectors = panel.querySelectorAll(`.dsn-selector-item[data-selector-type="id"][data-element-index="${elementIndex}"].dsn-selected`);
+            idSelectors.forEach(el => {
+              el.classList.remove('dsn-selected');
+              const idSelector = decodeURIComponent(el.getAttribute('data-selector') || '');
+              deselectSelector(elementIndex, idSelector, 'id');
+            });
+          }
+        }
+        
+        // Update hierarchy element styling based on selection state
+        this.updateHierarchyElementStyling(panel);
+      });
+    });
+    
+    // Set up listener for selector changes to update hierarchy styling
+    document.addEventListener('dsn-selector-changed', () => {
+      this.updateHierarchyElementStyling(panel);
+    });
+  }
+  
+  /**
+   * Update hierarchy element styling based on selection state
+   */
+  private static updateHierarchyElementStyling(panel: HTMLElement): void {
+    // Get the selected selectors map
+    const selectedSelectorsMap = (window as any).dsnSelectedSelectors;
+    if (!selectedSelectorsMap) return;
+    
+    console.log('DSN-DEBUG: Updating hierarchy styling based on selections');
+    
+    // Log current selections to help debugging
+    selectedSelectorsMap.forEach((selectors: Set<string>, index: string) => {
+      console.log(`Element ${index}: ${Array.from(selectors).join(', ')}`);
+    });
+    
+    // Find all card headers
+    const cardHeaders = panel.querySelectorAll('.dsn-card-header');
+    
+    // Update styling for each card header based on whether it has selectors
+    cardHeaders.forEach(header => {
+      const elementIndex = header.getAttribute('data-index');
+      if (!elementIndex) return;
+      
+      console.log(`DSN-DEBUG: Checking card header with index ${elementIndex}`);
+      
+      // Check if this element has selectors
+      const hasSelectors = selectedSelectorsMap.has(elementIndex) && 
+                           selectedSelectorsMap.get(elementIndex).size > 0;
+      
+      // Update the styling
+      if (hasSelectors) {
+        console.log(`DSN-DEBUG: Element ${elementIndex} has selectors, applying styles`);
+        header.classList.add('dsn-element-selected');
+        
+        // Also make the element text inside the header bold
+        const elementText = header.querySelector('.dsn-element-text');
+        if (elementText) {
+          elementText.classList.add('dsn-element-text-selected');
+        }
+      } else {
+        console.log(`DSN-DEBUG: Element ${elementIndex} has no selectors, removing styles`);
+        header.classList.remove('dsn-element-selected');
+        
+        // Remove bold from element text
+        const elementText = header.querySelector('.dsn-element-text');
+        if (elementText) {
+          elementText.classList.remove('dsn-element-text-selected');
+        }
+      }
+    });
+  }
+  
+  /**
+   * Check if a selector is already selected
+   */
+  private static isSelectorSelected(elementIndex: string, selector: string, selectorType: string): boolean {
+    // Get the selected selectors from selector-builder
+    const selectedSelectorsMap = (window as any).dsnSelectedSelectors;
+    
+    if (!selectedSelectorsMap) {
+      return false;
+    }
+    
+    // Get the set of selectors for this element
+    const selectorSet = selectedSelectorsMap.get(elementIndex);
+    if (!selectorSet) {
+      return false;
+    }
+    
+    // Check if this selector is in the set
+    return selectorSet.has(`${selectorType}:${selector}`);
   }
   
   /**
