@@ -9,6 +9,12 @@ import { selectSelector, deselectSelector, updateCombinedSelector } from './sele
 
 console.log('DSN-DEBUG: ui-manager.ts loaded');
 
+// Add this interface near the top of the file with other imports
+interface CombinatorChangeDetail {
+  elementIndex: string;
+  combinator: string | null;
+}
+
 /**
  * Manages UI components for the DOM Selector Ninja
  */
@@ -288,16 +294,66 @@ export class UIManager {
       codeContainer.appendChild(combinedSelector);
       codeContainer.appendChild(copyButton);
       
-      // Match count display
-      const matchCount = document.createElement('div');
-      const matchCountSpan = document.createElement('span');
-      matchCountSpan.id = 'dsn-match-count';
-      matchCountSpan.className = 'dsn-match-count';
-      matchCountSpan.textContent = 'No matches found on page';
-      matchCount.appendChild(matchCountSpan);
-      
+      // Add statistics container to hold both specificity and match count
+      const statsContainer = document.createElement('div');
+      statsContainer.className = 'dsn-stats-container';
+
+      // Add specificity display
+      const specificityContainer = document.createElement('div');
+      specificityContainer.className = 'dsn-stat-item';
+
+      const specificityLabel = document.createElement('span');
+      specificityLabel.className = 'dsn-stat-label';
+      specificityLabel.textContent = 'Specificity:';
+
+      const specificityValue = document.createElement('span');
+      specificityValue.id = 'dsn-specificity-value';
+      specificityValue.className = 'dsn-stat-value';
+      specificityValue.textContent = '0,0,0';
+
+      specificityContainer.appendChild(specificityLabel);
+      specificityContainer.appendChild(specificityValue);
+
+      // Add match count in similar format
+      const matchCountContainer = document.createElement('div');
+      matchCountContainer.className = 'dsn-stat-item';
+
+      const matchCountLabel = document.createElement('span');
+      matchCountLabel.className = 'dsn-stat-label';
+      matchCountLabel.textContent = 'Matches:';
+
+      const matchCountValue = document.createElement('span');
+      matchCountValue.id = 'dsn-match-count';
+      matchCountValue.className = 'dsn-stat-value';
+      matchCountValue.textContent = '0';
+
+      matchCountContainer.appendChild(matchCountLabel);
+      matchCountContainer.appendChild(matchCountValue);
+
+      // Add specificity tooltip
+      const specificityTooltip = document.createElement('div');
+      specificityTooltip.className = 'dsn-specificity-tooltip';
+      specificityTooltip.innerHTML = `
+        <div class="dsn-tooltip-content">
+          <p>Specificity determines which CSS rules apply to elements.</p>
+          <p>Format: (a,b,c)</p>
+          <ul>
+            <li><strong>a:</strong> ID selectors</li>
+            <li><strong>b:</strong> Class selectors, attributes, and pseudo-classes</li>
+            <li><strong>c:</strong> Element selectors and pseudo-elements</li>
+          </ul>
+          <p>Higher values have higher precedence.</p>
+        </div>
+      `;
+      specificityContainer.appendChild(specificityTooltip);
+
+      // Add everything to the stats container
+      statsContainer.appendChild(specificityContainer);
+      statsContainer.appendChild(matchCountContainer);
+
+      // Now add components to resultSection
       resultSection.appendChild(codeContainer);
-      resultSection.appendChild(matchCount);
+      resultSection.appendChild(statsContainer);
       
       content.appendChild(resultSection);
       
@@ -646,40 +702,49 @@ export class UIManager {
           // Deselect
           selectorElement.classList.remove('dsn-selected');
           deselectSelector(elementIndex, selector, selectorType);
+          
+          // If deselecting a pseudo-element, re-enable disabled elements
+          if (selectorType === 'pseudo') {
+            this.updateElementsDisabledStateForPseudo(panel, false);
+          }
+          
+          // If deselecting an ID, re-enable disabled elements
+          if (selectorType === 'id') {
+            this.updateElementsDisabledStateForId(panel, false);
+          }
         } else {
           // Select
           selectorElement.classList.add('dsn-selected');
-          selectSelector(elementIndex, selector, selectorType);
           
-          // If this is a pseudo-element, deselect any other selected pseudo-elements
-          if (selectorType === 'pseudo') {
-            const otherPseudoElements = panel.querySelectorAll(`.dsn-pseudo-item.dsn-selected[data-element-index="${elementIndex}"]`);
-            otherPseudoElements.forEach(el => {
-              if (el !== selectorElement) {
-                el.classList.remove('dsn-selected');
-                const otherSelector = decodeURIComponent(el.getAttribute('data-selector') || '');
-                deselectSelector(elementIndex, otherSelector, 'pseudo');
-              }
-            });
+          // Special handling for combinators - they're mutually exclusive
+          if (selectorType === 'combinator') {
+            // Deselect any other selected combinator in the same group
+            const combinatorList = selectorElement.closest('.dsn-combinator-list');
+            if (combinatorList) {
+              const otherCombinators = combinatorList.querySelectorAll('.dsn-selector-item.dsn-selected');
+              otherCombinators.forEach(combo => {
+                if (combo !== selectorElement) {
+                  combo.classList.remove('dsn-selected');
+                  const comboSelector = decodeURIComponent(combo.getAttribute('data-selector') || '');
+                  const comboIndex = combo.getAttribute('data-element-index') || '';
+                  // Fix: Ensure we pass string values, not unknown
+                  deselectSelector(comboIndex, comboSelector, 'combinator');
+                }
+              });
+            }
           }
           
-          // Handle tag/ID mutual exclusivity
+          // Fix: Ensure all arguments are strings
+          selectSelector(elementIndex, selector, selectorType);
+          
+          // If this is a pseudo-element, disable all elements after this in the hierarchy
+          if (selectorType === 'pseudo') {
+            this.updateElementsDisabledStateForPseudo(panel, true, parseInt(elementIndex) || 0);
+          }
+          
+          // If this is an ID, disable all elements before this in the hierarchy
           if (selectorType === 'id') {
-            // Deselect any tag selectors when ID is selected
-            const tagSelectors = panel.querySelectorAll(`.dsn-selector-item[data-selector-type="tag"][data-element-index="${elementIndex}"].dsn-selected`);
-            tagSelectors.forEach(el => {
-              el.classList.remove('dsn-selected');
-              const tagSelector = decodeURIComponent(el.getAttribute('data-selector') || '');
-              deselectSelector(elementIndex, tagSelector, 'tag');
-            });
-          } else if (selectorType === 'tag') {
-            // Deselect any ID selectors when tag is selected
-            const idSelectors = panel.querySelectorAll(`.dsn-selector-item[data-selector-type="id"][data-element-index="${elementIndex}"].dsn-selected`);
-            idSelectors.forEach(el => {
-              el.classList.remove('dsn-selected');
-              const idSelector = decodeURIComponent(el.getAttribute('data-selector') || '');
-              deselectSelector(elementIndex, idSelector, 'id');
-            });
+            this.updateElementsDisabledStateForId(panel, true, parseInt(elementIndex) || 0);
           }
         }
         
@@ -692,6 +757,326 @@ export class UIManager {
     document.addEventListener('dsn-selector-changed', () => {
       this.updateHierarchyElementStyling(panel);
     });
+    
+    // Set up listener for combinator changes
+    document.addEventListener('dsn-combinator-changed', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (!customEvent.detail) return;
+      
+      // Type assertion to safely use the detail object
+      const detail = customEvent.detail as CombinatorChangeDetail;
+      const elementIndex = detail.elementIndex;
+      const combinator = detail.combinator;
+      
+      // Update UI to reflect combinator change
+      const combinatorLists = panel.querySelectorAll('.dsn-combinator-list');
+      combinatorLists.forEach(list => {
+        const cardHeader = list.closest('.dsn-card-content')?.closest('.dsn-card')?.querySelector('.dsn-card-header');
+        const listElementIndex = cardHeader?.getAttribute('data-index') || '';
+        
+        if (listElementIndex === elementIndex) {
+          // Find all combinators in this list
+          const combinatorItems = list.querySelectorAll('.dsn-selector-item');
+          
+          // Deselect all first
+          combinatorItems.forEach(item => {
+            item.classList.remove('dsn-selected');
+          });
+          
+          // If a combinator was specified, select it
+          if (combinator) {
+            const combinatorToSelect = Array.from(combinatorItems).find(
+              item => item.getAttribute('data-selector') === combinator
+            );
+            if (combinatorToSelect) {
+              combinatorToSelect.classList.add('dsn-selected');
+            }
+          }
+        }
+      });
+    });
+    
+    // Set default combinator (Descendant) when multiple elements are selected
+    document.addEventListener('dsn-selector-changed', () => {
+      // Check if multiple elements have selectors
+      const selectedSelectorsMap = (window as any).dsnSelectedSelectors;
+      if (!selectedSelectorsMap) return;
+      
+      // Count elements with selectors
+      let elementsWithSelectors = 0;
+      let lastElementWithSelectors: string | null = null;
+      
+      selectedSelectorsMap.forEach((selectors: Set<string>, index: string) => {
+        if (selectors.size > 0) {
+          elementsWithSelectors++;
+          lastElementWithSelectors = index;
+        }
+      });
+      
+      // If we have multiple elements with selectors
+      if (elementsWithSelectors > 1) {
+        // Get all elements in order
+        const indices = Array.from(selectedSelectorsMap.keys() as Iterable<string>)
+          .filter(idx => selectedSelectorsMap.get(idx).size > 0)
+          .sort((a, b) => {
+            if (a === 'selected') return 1;
+            if (b === 'selected') return -1;
+            return parseInt(a) - parseInt(b);
+          });
+        
+        // Go through each pair of adjacent elements and ensure a combinator exists
+        for (let i = 0; i < indices.length - 1; i++) {
+          const currentIdx = indices[i];
+          
+          // Check if a combinator is already selected
+          const combinatorMap = (window as any).dsnSelectedCombinators;
+          if (!combinatorMap || !combinatorMap.has(currentIdx)) {
+            // Select the default combinator for this element
+            const combinatorList = this.findCombinatorList(panel, currentIdx);
+            if (combinatorList) {
+              const defaultCombinator = combinatorList.querySelector('.dsn-selector-item[data-selector=" "]:not(.dsn-combinator-disabled)');
+              if (defaultCombinator && !defaultCombinator.classList.contains('dsn-selected')) {
+                // Programmatically select the default combinator
+                defaultCombinator.classList.add('dsn-selected');
+                // Explicitly cast currentIdx to string to fix type error
+                selectSelector(String(currentIdx), ' ', 'combinator');
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+  
+  /**
+   * Find the combinator list for a specific element
+   */
+  private static findCombinatorList(panel: HTMLElement, elementIndex: string): HTMLElement | null {
+    // Find the card with this index
+    const cardHeader = panel.querySelector(`.dsn-card-header[data-index="${elementIndex}"]`);
+    if (!cardHeader) return null;
+    
+    // Find its content
+    const content = elementIndex === 'selected' 
+      ? panel.querySelector('.dsn-card-content[data-for="selected"]')
+      : cardHeader.nextElementSibling;
+    
+    if (!content) return null;
+    
+    // Find the combinator list within content
+    return content.querySelector('.dsn-combinator-list') as HTMLElement;
+  }
+  
+  /**
+   * Update the disabled state of elements after a pseudo-element selection
+   */
+  private static updateElementsDisabledStateForPseudo(panel: HTMLElement, isDisabled: boolean, pseudoElementIndex: number = 0): void {
+    // Check if there's an active ID selector
+    const hasActiveIdSelector = panel.querySelector('.dsn-disabled-id') !== null;
+    
+    // Get all card headers that should be affected by pseudo-element selection
+    const cardHeaders = panel.querySelectorAll('.dsn-card-header');
+    
+    // Remove pseudo-specific disabled states when turning off
+    if (!isDisabled) {
+      cardHeaders.forEach(header => {
+        // Only remove pseudo-related classes, preserve ID-related ones if present
+        header.classList.remove('dsn-disabled-pseudo');
+        
+        // Only completely remove the disabled class if it's not also disabled by ID
+        const headerIndex = header.getAttribute('data-index');
+        if (!headerIndex) return;
+        
+        const index = parseInt(headerIndex);
+        const isDisabledById = hasActiveIdSelector && this.shouldBeDisabledById(panel, index);
+        
+        if (!isDisabledById) {
+          header.classList.remove('dsn-disabled');
+          
+          // Re-enable selector items
+          const content = header.nextElementSibling as HTMLElement;
+          if (content) {
+            const selectors = content.querySelectorAll('.dsn-selector-item');
+            selectors.forEach(selector => {
+              (selector as HTMLElement).removeAttribute('data-disabled');
+            });
+          }
+        }
+      });
+      
+      // Handle the message
+      const pseudoMessage = panel.querySelector('.dsn-pseudo-message') as HTMLElement;
+      if (pseudoMessage) {
+        pseudoMessage.remove();
+      }
+      
+      // Update combined selector
+      updateCombinedSelector();
+      return;
+    }
+    
+    // Only proceed with disabling if isDisabled is true
+    cardHeaders.forEach(header => {
+      const headerIndex = header.getAttribute('data-index');
+      if (!headerIndex || headerIndex === 'selected') return;
+      
+      const index = parseInt(headerIndex);
+      
+      // Disable elements that come after the pseudo-element in the hierarchy
+      if (index > pseudoElementIndex) {
+        header.classList.add('dsn-disabled', 'dsn-disabled-pseudo');
+        
+        // Find all selector items for this element and disable them
+        const content = header.nextElementSibling as HTMLElement;
+        if (content) {
+          const selectors = content.querySelectorAll('.dsn-selector-item');
+          selectors.forEach(selector => {
+            (selector as HTMLElement).setAttribute('data-disabled', 'true');
+            
+            // If it was selected, deselect it
+            if (selector.classList.contains('dsn-selected')) {
+              selector.classList.remove('dsn-selected');
+              const selectorValue = selector.getAttribute('data-selector') || '';
+              const selectorType = selector.getAttribute('data-selector-type') || '';
+              deselectSelector(headerIndex, decodeURIComponent(selectorValue), selectorType);
+            }
+          });
+        }
+      }
+    });
+    
+    // Update combined selector to reflect changes
+    updateCombinedSelector();
+  }
+  
+  /**
+   * Update the disabled state of elements before an element with ID selection
+   */
+  private static updateElementsDisabledStateForId(panel: HTMLElement, isDisabled: boolean, idElementIndex: number = 0): void {
+    // Check if there's an active pseudo-element selector
+    const hasActivePseudoSelector = panel.querySelector('.dsn-disabled-pseudo') !== null;
+    
+    // Get all card headers that should be affected by ID selection
+    const cardHeaders = panel.querySelectorAll('.dsn-card-header');
+    
+    // Remove ID-specific disabled states when turning off
+    if (!isDisabled) {
+      cardHeaders.forEach(header => {
+        // Only remove ID-related classes, preserve pseudo-related ones if present
+        header.classList.remove('dsn-disabled-id');
+        
+        // Only completely remove the disabled class if it's not also disabled by pseudo
+        const headerIndex = header.getAttribute('data-index');
+        if (!headerIndex) return;
+        
+        const index = parseInt(headerIndex);
+        const isDisabledByPseudo = hasActivePseudoSelector && this.shouldBeDisabledByPseudo(panel, index);
+        
+        if (!isDisabledByPseudo) {
+          header.classList.remove('dsn-disabled');
+          
+          // Re-enable selector items
+          const content = header.nextElementSibling as HTMLElement;
+          if (content) {
+            const selectors = content.querySelectorAll('.dsn-selector-item');
+            selectors.forEach(selector => {
+              (selector as HTMLElement).removeAttribute('data-disabled');
+            });
+          }
+        }
+      });
+      
+      // Handle the message
+      const idMessage = panel.querySelector('.dsn-id-message') as HTMLElement;
+      if (idMessage) {
+        idMessage.remove();
+      }
+      
+      // Update combined selector
+      updateCombinedSelector();
+      return;
+    }
+    
+    // Only proceed with disabling if isDisabled is true
+    cardHeaders.forEach(header => {
+      const headerIndex = header.getAttribute('data-index');
+      if (!headerIndex || headerIndex === 'selected') return;
+      
+      const index = parseInt(headerIndex);
+      
+      // Disable elements that come before the element with ID in the hierarchy
+      if (index < idElementIndex) {
+        header.classList.add('dsn-disabled', 'dsn-disabled-id');
+        
+        // Find all selector items for this element and disable them
+        const content = header.nextElementSibling as HTMLElement;
+        if (content) {
+          const selectors = content.querySelectorAll('.dsn-selector-item');
+          selectors.forEach(selector => {
+            (selector as HTMLElement).setAttribute('data-disabled', 'true');
+            
+            // If it was selected, deselect it
+            if (selector.classList.contains('dsn-selected')) {
+              selector.classList.remove('dsn-selected');
+              const selectorValue = selector.getAttribute('data-selector') || '';
+              const selectorType = selector.getAttribute('data-selector-type') || '';
+              deselectSelector(headerIndex, decodeURIComponent(selectorValue), selectorType);
+            }
+          });
+        }
+      }
+    });
+    
+    // Update combined selector to reflect changes
+    updateCombinedSelector();
+  }
+  
+  /**
+   * Helper method to check if an element should be disabled based on pseudo-element selection
+   */
+  private static shouldBeDisabledByPseudo(panel: HTMLElement, index: number): boolean {
+    // Find the active pseudo-element index
+    const pseudoSelectors = panel.querySelectorAll('.dsn-selector-item[data-selector-type="pseudo"].dsn-selected');
+    if (pseudoSelectors.length === 0) return false;
+    
+    // Find the smallest index (closest to root) of elements with pseudo-elements
+    let pseudoElementIndex = Infinity;
+    pseudoSelectors.forEach(selector => {
+      const selectorIndex = selector.getAttribute('data-element-index');
+      if (selectorIndex && selectorIndex !== 'selected') {
+        const selectorIndexNum = parseInt(selectorIndex);
+        if (selectorIndexNum < pseudoElementIndex) {
+          pseudoElementIndex = selectorIndexNum;
+        }
+      }
+    });
+    
+    // Elements after the pseudo-element should be disabled
+    return index > pseudoElementIndex;
+  }
+  
+  /**
+   * Helper method to check if an element should be disabled based on ID selection
+   */
+  private static shouldBeDisabledById(panel: HTMLElement, index: number): boolean {
+    // Find the active ID selector index
+    const idSelectors = panel.querySelectorAll('.dsn-selector-item[data-selector-type="id"].dsn-selected');
+    if (idSelectors.length === 0) return false;
+    
+    // Find the largest index (furthest from root) of elements with ID selectors
+    let idElementIndex = -1;
+    idSelectors.forEach(selector => {
+      const selectorIndex = selector.getAttribute('data-element-index');
+      if (selectorIndex && selectorIndex !== 'selected') {
+        const selectorIndexNum = parseInt(selectorIndex);
+        if (selectorIndexNum > idElementIndex) {
+          idElementIndex = selectorIndexNum;
+        }
+      }
+    });
+    
+    // Elements before the ID should be disabled
+    return index < idElementIndex;
   }
   
   /**

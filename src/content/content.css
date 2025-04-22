@@ -98,6 +98,7 @@
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   touch-action: none !important;
+  z-index: 3 !important; /* Ensure header stays above disabled elements */
 }
 
 /* Panel title */
@@ -186,6 +187,8 @@
   background-color: white !important;
   padding: 0 !important;
   margin: 0 !important;
+  position: relative !important;
+  z-index: 1 !important; /* Ensure proper stacking context */
 }
 
 /* Card styles */
@@ -225,6 +228,7 @@
   border-bottom: 1px solid #bae6fd;
 }
 
+/* Base disabled state */
 .dsn-card-header.dsn-disabled {
   opacity: 0.5 !important;
   pointer-events: none !important;
@@ -232,7 +236,7 @@
   background-color: #f1f5f9 !important;
 }
 
-/* Base disabled state with no message */
+/* Remove the base overlay that could cause stacking darkness */
 .dsn-card-header.dsn-disabled:after {
   content: '' !important;
   position: absolute !important;
@@ -244,21 +248,89 @@
   justify-content: right !important;
   padding-right: 25px !important;
   align-items: center !important;
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  color: blue !important;
+  background-color: transparent !important;
+  color: #64748b !important;
   font-size: 12px !important;
   font-style: italic !important;
+  z-index: 2 !important;
+  pointer-events: none !important;
+}
+
+/* Specific content for different disabled states */
+.dsn-card-header.dsn-disabled-pseudo:after {
+  content: 'Disabled: pseudo-element selected' !important;
+  color: #6366f1 !important;
+}
+
+.dsn-card-header.dsn-disabled-id:after {
+  content: 'Disabled: ID selected' !important;
+  color: #0369a1 !important;
+}
+
+/* Add a very faint background to ensure text is readable but no darkening */
+.dsn-card-header.dsn-disabled-pseudo:before,
+.dsn-card-header.dsn-disabled-id:before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-color: rgba(255, 255, 255, 0.2) !important; /* Light overlay instead of dark */
   z-index: 1 !important;
+  pointer-events: none !important;
 }
 
 /* Pseudo-element disabled message */
-.dsn-card-header.dsn-disabled-pseudo:after {
-  content: 'Disabled when using pseudo-element' !important;
+.dsn-card-header.dsn-disabled-pseudo {
+  opacity: 0.5 !important;
+  pointer-events: none !important;
+  position: relative !important;
+  background-color: #f1f5f9 !important;
 }
 
-/* ID selector disabled message */
+/* Add disabled message */
+.dsn-card-header.dsn-disabled-pseudo:after {
+  content: 'Disabled: pseudo-element selected' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  justify-content: right !important;
+  padding-right: 15px !important;
+  align-items: center !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: #6366f1 !important;
+  font-size: 12px !important;
+  font-style: italic !important;
+  z-index: 2 !important;
+  pointer-events: none !important; /* Ensure clicks pass through the overlay */
+}
+
+/* ID-disabled elements */
 .dsn-card-header.dsn-disabled-id:after {
-  content: 'Disabled when using ID selector' !important;
+  content: 'Disabled: ID selected' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  justify-content: right !important;
+  padding-right: 15px !important;
+  align-items: center !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: #0369a1 !important; /* Different color than pseudo-element disabled */
+  font-size: 12px !important;
+  font-style: italic !important;
+  z-index: 2 !important;
+  pointer-events: none !important; /* Ensure clicks pass through the overlay */
+}
+
+.dsn-card-header.dsn-disabled + .dsn-card-content {
+  pointer-events: none !important; /* Disable interaction with content of disabled cards */
 }
 
 .dsn-chevron {
@@ -297,6 +369,7 @@
   background: none !important;
   border: none !important;
   max-height: 188px !important; /* Adjusted from 180px to 188px as requested */
+  max-width: 300px;
   overflow-y: auto !important; /* Enable vertical scrolling */
   overflow-x: hidden !important; /* Hide horizontal scrollbar */
   scrollbar-width: thin !important; /* Firefox scrollbar styling */
@@ -374,6 +447,22 @@
   flex: 0 0 auto !important; /* Don't grow or shrink */
 }
 
+/* Style for empty list items (like "No attributes available") */
+.dsn-selector-item.dsn-empty-list {
+  color: #64748b !important; /* Dark gray color */
+  background-color: #f8fafc !important; /* Lighter background */
+  cursor: default !important; /* Default cursor instead of pointer */
+  pointer-events: none !important; /* Make it non-interactive */
+  font-style: italic !important; /* Italic text for better visual distinction */
+  border: none !important; /* Remove any border */
+  padding-right: 8px !important; /* Reset padding since we don't need ellipsis icon space */
+}
+
+/* Ensure hover effect doesn't apply to empty list items */
+.dsn-selector-item.dsn-empty-list:hover {
+  background-color: #f8fafc !important; /* Keep the same background on hover */
+}
+
 .dsn-selector-item {
   display: block !important; /* Ensure each item takes full width */
   width: 100% !important;
@@ -402,6 +491,10 @@
   background-color: rgba(0, 123, 255, 0.2) !important;
   border-left: 3px solid #0077cc !important;
   font-weight: bold !important;
+}
+
+.dsn-card:not(.dsn-disabled) .dsn-selector-item {
+  pointer-events: auto !important;
 }
 
 .dsn-combinator-disabled {
@@ -462,6 +555,8 @@
   padding: 8px;
   border: 1px solid #e2e8f0;
   flex: 0 0 auto; /* Don't grow or shrink */
+  z-index: 3 !important; /* Ensure result section stays above disabled elements */
+  position: relative !important;
 }
 
 /* Code container styling */
@@ -634,36 +729,32 @@
 
 /* Combinator symbol and description styling */
 .dsn-combinator-symbol {
-  display: inline-block;
-  width: 12px;
-  text-align: center;
-  font-weight: bold;
+  display: inline-block !important;
+  width: 20px !important; /* Slightly wider for better visibility */
+  text-align: center !important;
+  font-weight: bold !important;
+  font-family: monospace !important;
+  font-size: 16px !important;
+  color: #3b82f6 !important; /* Blue color for better visibility */
 }
 
+/* Combinator description with more space */
 .dsn-combinator-description {
-  margin-left: 8px;
-  font-size: 11px;
-  color: #64748b;
+  margin-left: 10px !important;
+  font-size: 12px !important;
+  color: #64748b !important;
+}
+
+/* Selected combinator styling */
+.dsn-selector-item[data-selector-type="combinator"].dsn-selected {
+  background-color: #dbeafe !important;
+  border-left: 3px solid #3b82f6 !important;
+  font-weight: bold !important;
 }
 
 /* Button container */
 .dsn-button-container {
   display: none;
-}
-
-/* Match count styling */
-.dsn-match-count {
-  display: inline-block !important;
-  margin: 8px 0 0 5px !important;
-  padding: 2px 8px !important;
-  border-radius: 4px !important;
-  background-color: #f1f5f9 !important;
-  color: #718096 !important;
-  font-size: 13px !important;
-  line-height: normal !important;
-  font-weight: normal !important;
-  border: none !important;
-  text-align: left !important;
 }
 
 /* Close button at the bottom of the panel */
@@ -685,10 +776,100 @@
   outline: none !important;
   text-align: center !important;
   line-height: normal !important;
+  z-index: 4 !important; /* Higher z-index to stay above overlays */
 }
 
 .dsn-panel-close-button:hover {
   background-color: #e2e8f0 !important;
+}
+
+/* Stats container - holds specificity and match count */
+.dsn-stats-container {
+  display: flex !important;
+  align-items: center !important;
+  margin: 8px 0 0 5px !important;
+  position: relative !important;
+}
+
+/* Each stat item (specificity and match count) */
+.dsn-stat-item {
+  display: flex !important;
+  align-items: center !important;
+  margin-right: 20px !important;
+  position: relative !important;
+}
+
+/* Label styling for stats */
+.dsn-stat-label {
+  margin-right: 8px !important;
+  font-size: 13px !important;
+  color: #64748b !important;
+}
+
+/* Value styling for stats */
+.dsn-stat-value {
+  font-family: monospace !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  background-color: #f1f5f9 !important;
+  padding: 2px 8px !important;
+  border-radius: 4px !important;
+}
+
+/* Make specificity value show cursor:help for tooltip */
+#dsn-specificity-value {
+  cursor: help !important;
+}
+
+/* Use different colors for specificity values */
+#dsn-specificity-value[data-specificity*="0,0,"] {
+  color: #10b981 !important; /* Low specificity - green */
+}
+
+#dsn-specificity-value[data-specificity*="0,"] {
+  color: #0891b2 !important; /* Medium specificity - blue */
+}
+
+#dsn-specificity-value[data-specificity^="1"] {
+  color: #f59e0b !important; /* High specificity - amber */
+}
+
+#dsn-specificity-value[data-specificity^="[1"] {
+  color: #f59e0b !important; /* High specificity for JSON format - amber */
+}
+
+/* Values higher than 1,0,0 */
+#dsn-specificity-value[data-specificity^="2"],
+#dsn-specificity-value[data-specificity^="[2"],
+#dsn-specificity-value[data-specificity^="3"],
+#dsn-specificity-value[data-specificity^="[3"] {
+  color: #ef4444 !important; /* Very high specificity - red */
+}
+
+/* Use different colors for match count values */
+#dsn-match-count {
+  transition: color 0.2s ease !important;
+}
+
+#dsn-match-count[data-count="0"] {
+  color: #ef4444 !important; /* Red for no matches */
+}
+
+#dsn-match-count[data-count="1"] {
+  color: #f59e0b !important; /* Amber for single match */
+}
+
+#dsn-match-count[data-count="unique"] {
+  color: #10b981 !important; /* Green for unique matches */
+}
+
+/* Remove old specificity container styles as they've been replaced */
+.dsn-specificity-container,
+.dsn-specificity-label,
+.dsn-specificity-value,
+.dsn-match-count {
+  /* These are now replaced by the new stat classes above */
 }
 
 /* Dark mode support */
@@ -704,25 +885,26 @@
 
 /* Pseudo-element message styling - updated to match ID message style */
 .dsn-pseudo-message {
-  background-color: #e0f2fe;
-  color: #0369a1;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  border-left: 4px solid #0ea5e9;
-  font-size: 13px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  line-height: 1.4;
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  margin-bottom: 8px !important;
+  border-left: 4px solid #0ea5e9 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  line-height: 1.4 !important;
+  z-index: 3 !important; /* Ensure messages stay visible */
 }
 
-.dsn-pseudo-message:before {
-  content: '::';
-  margin-right: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  font-family: monospace;
+.dsn-pseudo-message::before {
+  content: '::' !important;
+  margin-right: 8px !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  font-family: monospace !important;
 }
 
 /* Style for combined selectors that contain pseudo-elements */
@@ -761,25 +943,26 @@
 
 /* ID selector message styling - similar to pseudo-element message but with different colors */
 .dsn-id-message {
-  background-color: #e0f2fe;
-  color: #0369a1;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  border-left: 4px solid #0ea5e9;
-  font-size: 13px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  line-height: 1.4;
+  background-color: #e0f2fe !important; 
+  color: #0369a1 !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  margin-bottom: 8px !important;
+  border-left: 4px solid #0ea5e9 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  line-height: 1.4 !important;
+  z-index: 3 !important; /* Ensure messages stay visible */
 }
 
 .dsn-id-message:before {
-  content: '#';
-  margin-right: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  font-family: monospace;
+  content: '#' !important;
+  margin-right: 8px !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  font-family: monospace !important;
 }
 
 /* Add styling for the context menu */
@@ -1349,4 +1532,70 @@
 /* Override the hover effect for disabled combinators */
 .dsn-combinator-disabled:hover {
   background-color: #f0f0f0 !important;
+}
+
+/* Tooltip for explaining specificity */
+.dsn-specificity-tooltip {
+  position: absolute !important;
+  bottom: 125% !important;
+  left: 0 !important;
+  transform: translateX(0) !important;
+  background-color: #0f172a !important;
+  color: white !important;
+  border-radius: 6px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+  padding: 12px !important;
+  width: 280px !important;
+  z-index: 10 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: opacity 0.3s, visibility 0.3s !important;
+  pointer-events: none !important;
+}
+
+/* Show tooltip on hover */
+.dsn-specificity-container:hover .dsn-specificity-tooltip {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Tooltip content styling */
+.dsn-tooltip-content {
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+}
+
+.dsn-tooltip-content p {
+  margin: 0 0 8px 0 !important;
+  padding: 0 !important;
+  color: #f8fafc !important;
+}
+
+.dsn-tooltip-content ul {
+  margin: 0 0 8px 0 !important;
+  padding: 0 0 0 16px !important;
+  list-style-type: disc !important;
+}
+
+.dsn-tooltip-content li {
+  margin: 4px 0 !important;
+  padding: 0 !important;
+  color: #f8fafc !important;
+}
+
+.dsn-tooltip-content strong {
+  font-weight: bold !important;
+  color: #93c5fd !important;
+}
+
+/* Triangle pointer for tooltip */
+.dsn-specificity-tooltip::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 100% !important;
+  left: 16px !important;
+  margin-left: -8px !important;
+  border-width: 8px !important;
+  border-style: solid !important;
+  border-color: #0f172a transparent transparent transparent !important;
 }

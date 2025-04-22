@@ -7,8 +7,15 @@ import { PSEUDO_ELEMENTS, PSEUDO_CLASSES, COMBINATOR_SELECTORS, SELECTOR_TYPE_OR
 // Store selected selectors for each element in the hierarchy, mapping element index to list of selected selectors
 export const selectedSelectors = new Map<string, Set<string>>();
 
-// Expose selected selectors to window for cross-file access
+// Map to store selected combinators between elements
+export const selectedCombinators = new Map<string, string>();
+
+// Default combinator (Descendant - space)
+const DEFAULT_COMBINATOR = ' ';
+
+// Expose selected selectors and combinators to window for cross-file access
 (window as any).dsnSelectedSelectors = selectedSelectors;
+(window as any).dsnSelectedCombinators = selectedCombinators;
 
 // Flags for state tracking
 export let isPseudoElementSelected = false;
@@ -19,16 +26,7 @@ export let selectedPseudoElement: string | null = null;
 
 // Listen for reset events
 document.addEventListener('dsn-reset-selectors', () => {
-  // Clear all selectors
-  selectedSelectors.clear();
-  
-  // Reset state flags
-  isPseudoElementSelected = false;
-  isIdSelectorSelected = false;
-  selectedPseudoElement = null;
-  
-  // Update the combined selector display
-  updateCombinedSelector();
+  resetSelectors();
 });
 
 /**
@@ -86,8 +84,26 @@ export function selectSelector(elementIndex: string, selector: string, selectorT
     }
   }
   
-  // Add the selector with its type prefix for easy identification
-  selectorSet.add(`${selectorType}:${selector}`);
+  // If this is a combinator, handle it differently
+  if (selectorType === 'combinator') {
+    // Get the current index number (or use 0 for 'selected')
+    const currentIndex = elementIndex === 'selected' ? 0 : parseInt(elementIndex);
+    
+    // Store combinator for the next element
+    // We store it with the index of the element *before* the combinator
+    selectedCombinators.set(currentIndex.toString(), selector);
+    
+    // Refresh the UI to reflect the new combinator
+    document.dispatchEvent(new CustomEvent('dsn-combinator-changed', {
+      detail: {
+        elementIndex: currentIndex.toString(),
+        combinator: selector
+      }
+    }));
+  } else {
+    // Add the selector with its type prefix for easy identification
+    selectorSet.add(`${selectorType}:${selector}`);
+  }
   
   // Update the combined selector
   updateCombinedSelector();
@@ -119,120 +135,197 @@ export function deselectSelector(elementIndex: string, selector: string, selecto
     isPseudoElementSelected = false;
   }
   
+  // If this is a combinator, remove it
+  if (selectorType === 'combinator') {
+    // Get the current index number (or use 0 for 'selected')
+    const currentIndex = elementIndex === 'selected' ? 0 : parseInt(elementIndex);
+    
+    // Remove the combinator
+    selectedCombinators.delete(currentIndex.toString());
+    
+    // Refresh the UI to reflect the combinator change
+    document.dispatchEvent(new CustomEvent('dsn-combinator-changed', {
+      detail: {
+        elementIndex: currentIndex.toString(),
+        combinator: null
+      }
+    }));
+  }
+  
+  // Update the combined selector
+  updateCombinedSelector();
+  
   // Trigger an event so other components can react to selector changes
   const event = new CustomEvent('dsn-selector-changed', {
     detail: { elementIndex, selector, selectorType, selected: false }
   });
   document.dispatchEvent(event);
+}
+
+/**
+ * Reset all selected selectors
+ */
+export function resetSelectors(): void {
+  selectedSelectors.clear();
+  selectedCombinators.clear();
   
-  // Update the combined selector
+  // Reset state flags
+  isPseudoElementSelected = false;
+  isIdSelectorSelected = false;
+  selectedPseudoElement = null;
+  
+  // Update the combined selector display
   updateCombinedSelector();
 }
 
 /**
- * Update the combined selector display
+ * Get the combinator to use between two elements
+ */
+function getCombinator(previousIndex: number): string {
+  // Check if a specific combinator is selected for this pair
+  const selectedCombinator = selectedCombinators.get(previousIndex.toString());
+  if (selectedCombinator) {
+    return selectedCombinator;
+  }
+  
+  // Default to descendant combinator
+  return DEFAULT_COMBINATOR;
+}
+
+/**
+ * Calculate the specificity of a CSS selector
+ * Returns an array [a, b, c] where:
+ * - a: Number of ID selectors
+ * - b: Number of class selectors, attribute selectors, and pseudo-classes
+ * - c: Number of element (tag) selectors and pseudo-elements
+ */
+export function calculateSpecificity(selector: string): [number, number, number] {
+  if (!selector || selector === 'No elements selected') {
+    return [0, 0, 0];
+  }
+  
+  // Initialize specificity values
+  let a = 0; // ID selectors
+  let b = 0; // Class selectors, attribute selectors, and pseudo-classes
+  let c = 0; // Element selectors and pseudo-elements
+  
+  try {
+    // Count ID selectors (#id)
+    a = (selector.match(/#[a-zA-Z0-9_-]+/g) || []).length;
+    
+    // Count class selectors (.class)
+    const classes = (selector.match(/\.[a-zA-Z0-9_-]+/g) || []).length;
+    
+    // Count attribute selectors ([attr=value])
+    const attributes = (selector.match(/\[[^\]]+\]/g) || []).length;
+    
+    // Count pseudo-classes (:hover, :first-child, etc.)
+    // Note: This won't count :not() contents, which is a simplification
+    const pseudoClasses = (selector.match(/:[a-zA-Z-]+(?:\([^)]*\))?/g) || [])
+      .filter(p => !p.startsWith('::')).length;
+    
+    b = classes + attributes + pseudoClasses;
+    
+    // Count element selectors (tag) and pseudo-elements (::before)
+    const elements = selector.split(/[.#\[\]:>+~\s]/)
+      .filter(s => s && /^[a-zA-Z0-9_-]+$/.test(s)).length;
+    
+    const pseudoElements = (selector.match(/::[a-zA-Z-]+/g) || []).length;
+    
+    c = elements + pseudoElements;
+  } catch (e) {
+    console.error('Error calculating specificity:', e);
+  }
+  
+  return [a, b, c];
+}
+
+/**
+ * Format specificity for display
+ */
+export function formatSpecificity(specificity: [number, number, number]): string {
+  return `${specificity[0]},${specificity[1]},${specificity[2]}`;
+}
+
+/**
+ * Update the match count display
+ */
+export function updateMatchCount(count: number): void {
+  const matchCount = document.getElementById('dsn-match-count');
+  if (!matchCount) return;
+  
+  // Set the count text
+  matchCount.textContent = count.toString();
+  
+  // Set a data attribute for styling
+  if (count === 0) {
+    matchCount.setAttribute('data-count', '0');
+  } else if (count === 1) {
+    matchCount.setAttribute('data-count', '1');
+  } else {
+    matchCount.setAttribute('data-count', 'unique');
+  }
+}
+
+/**
+ * Update the combined selector based on current selections
  */
 export function updateCombinedSelector(): void {
   const combinedSelectorElement = document.getElementById('dsn-combined-selector');
   if (!combinedSelectorElement) return;
   
-  console.log('DSN-DEBUG: Updating combined selector with map:', Array.from(selectedSelectors.entries()));
+  let selectorString = '';
+  let previousIndex: number | null = null;
   
-  // Get all selected selectors and sort by element index
-  const allSelectors: {index: string, selectors: string[]}[] = [];
+  // Sort keys numerically to maintain correct order
+  const keys = Array.from(selectedSelectors.keys())
+    .sort((a, b) => {
+      // Sort numerically, with 'selected' at the end
+      if (a === 'selected') return 1;
+      if (b === 'selected') return -1;
+      return parseInt(a) - parseInt(b);
+    });
   
-  selectedSelectors.forEach((selectorSet, elementIndex) => {
-    if (selectorSet.size > 0) {
-      // Group selectors by their type to ensure proper ordering
-      const tagSelectors: string[] = [];
-      const idSelectors: string[] = [];
-      const classSelectors: string[] = [];
-      const attrSelectors: string[] = [];
-      const pseudoClassSelectors: string[] = [];
-      const pseudoElementSelectors: string[] = [];
-      
-      // Sort selectors into appropriate groups
-      selectorSet.forEach(sel => {
-        const [type, ...parts] = sel.split(':');
-        const selector = parts.join(':');
-        
-        switch(type) {
-          case 'tag':
-            tagSelectors.push(selector);
-            break;
-          case 'id':
-            idSelectors.push(selector);
-            break;
-          case 'class':
-            classSelectors.push(selector);
-            break;
-          case 'attribute':
-            attrSelectors.push(selector);
-            break;
-          case 'pseudo-class':
-            pseudoClassSelectors.push(selector);
-            break;
-          case 'pseudo':
-            pseudoElementSelectors.push(selector);
-            break;
-        }
-      });
-      
-      console.log('DSN-DEBUG: Selector groups for element', elementIndex, {
-        tagSelectors,
-        idSelectors,
-        classSelectors,
-        attrSelectors,
-        pseudoClassSelectors,
-        pseudoElementSelectors
-      });
-      
-      // Build element selector with correct precedence
-      const elementSelector = [
-        ...tagSelectors,           // 1. Tag names first (div, span)
-        ...idSelectors,            // 2. Then IDs (#id)
-        ...classSelectors,         // 3. Then classes (.class)
-        ...attrSelectors,          // 4. Then attributes ([attr=val])
-        ...pseudoClassSelectors,   // 5. Then pseudo-classes (:hover)
-        ...pseudoElementSelectors  // 6. Pseudo-elements last (::before)
-      ];
-      
-      allSelectors.push({
-        index: elementIndex,
-        selectors: elementSelector
-      });
-    }
-  });
-  
-  // Sort elements by index
-  allSelectors.sort((a, b) => {
-    // Handle 'selected' element specially - should come last
-    if (a.index === 'selected') return 1;
-    if (b.index === 'selected') return -1;
-    
-    // Otherwise sort numerically
-    return parseInt(a.index) - parseInt(b.index);
-  });
-  
-  // Build the combined selector
-  let combinedSelector = '';
-  
-  allSelectors.forEach((element, i) => {
-    // Add combinator between elements if necessary
-    if (i > 0) {
-      combinedSelector += ' > '; // Default to child combinator for now
+  // Build selector with combinators between elements
+  for (const key of keys) {
+    // Skip keys with no selectors
+    if (!selectedSelectors.has(key) || selectedSelectors.get(key)!.size === 0) {
+      continue;
     }
     
-    // Join the element's selectors
-    combinedSelector += element.selectors.join('');
-  });
+    // For each element that has selectors
+    const currentIndex = key === 'selected' ? Infinity : parseInt(key);
+    const selectorForElement = buildElementSelector(selectedSelectors.get(key)!);
+    
+    if (selectorForElement) {
+      // If this isn't the first element, add a combinator
+      if (selectorString && previousIndex !== null) {
+        // Get the appropriate combinator (selected or default)
+        const combinator = getCombinator(previousIndex);
+        selectorString += combinator;
+      }
+      
+      // Add this element's selector
+      selectorString += selectorForElement;
+      previousIndex = currentIndex;
+    }
+  }
   
-  // Set the combined selector text
-  if (combinedSelector) {
-    combinedSelectorElement.textContent = combinedSelector;
+  if (selectorString) {
+    combinedSelectorElement.textContent = selectorString;
     
     // Update match count
-    updateMatchCount(combinedSelector);
+    try {
+      if (selectorString && selectorString !== 'No elements selected') {
+        const matchCount = document.querySelectorAll(selectorString).length;
+        updateMatchCount(matchCount);
+      } else {
+        updateMatchCount(0);
+      }
+    } catch (e) {
+      // If there's an error in the selector, show 0 matches
+      updateMatchCount(0);
+    }
   } else {
     combinedSelectorElement.textContent = 'No elements selected';
     
@@ -241,37 +334,61 @@ export function updateCombinedSelector(): void {
       matchCountElement.textContent = 'No matches found on page';
     }
   }
+  
+  // After setting the selectorString, update the specificity display
+  const specificityElement = document.getElementById('dsn-specificity-value');
+  if (specificityElement) {
+    const specificity = calculateSpecificity(selectorString);
+    specificityElement.textContent = formatSpecificity(specificity);
+    
+    // Set a data attribute for potential styling based on specificity
+    specificityElement.setAttribute('data-specificity', JSON.stringify(specificity));
+  }
 }
 
-/**
- * Update the match count for a selector
- */
-function updateMatchCount(selector: string): void {
-  const matchCountElement = document.getElementById('dsn-match-count');
-  if (!matchCountElement) return;
+// Function to build selector for a single element
+function buildElementSelector(selectors: Set<string>): string {
+  const tagSelectors: string[] = [];
+  const idSelectors: string[] = [];
+  const classSelectors: string[] = [];
+  const attrSelectors: string[] = [];
+  const pseudoClassSelectors: string[] = [];
+  const pseudoElementSelectors: string[] = [];
   
-  try {
-    // Try to query the document with the selector
-    const matches = document.querySelectorAll(selector);
-    const count = matches.length;
+  selectors.forEach(sel => {
+    const [type, ...parts] = sel.split(':');
+    const selector = parts.join(':');
     
-    // Update the match count text
-    if (count === 0) {
-      matchCountElement.textContent = 'No matches found on page';
-    } else if (count === 1) {
-      matchCountElement.textContent = '1 match found on page';
-    } else {
-      matchCountElement.textContent = `${count} matches found on page`;
+    switch(type) {
+      case 'tag':
+        tagSelectors.push(selector);
+        break;
+      case 'id':
+        idSelectors.push(selector);
+        break;
+      case 'class':
+        classSelectors.push(selector);
+        break;
+      case 'attribute':
+        attrSelectors.push(selector);
+        break;
+      case 'pseudo-class':
+        pseudoClassSelectors.push(selector);
+        break;
+      case 'pseudo':
+        pseudoElementSelectors.push(selector);
+        break;
     }
-    
-    // Add classes to highlight matching elements
-    matches.forEach(el => {
-      el.classList.add('dsn-selector-match');
-    });
-  } catch (error) {
-    // Invalid selector
-    matchCountElement.textContent = 'Invalid selector';
-  }
+  });
+  
+  return [
+    ...tagSelectors,           // 1. Tag names first (div, span)
+    ...idSelectors,            // 2. Then IDs (#id)
+    ...classSelectors,         // 3. Then classes (.class)
+    ...attrSelectors,          // 4. Then attributes ([attr=val])
+    ...pseudoClassSelectors,   // 5. Then pseudo-classes (:hover)
+    ...pseudoElementSelectors  // 6. Pseudo-elements last (::before)
+  ].join('');
 }
 
 /**
