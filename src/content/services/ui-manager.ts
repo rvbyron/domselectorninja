@@ -20,6 +20,7 @@ interface CombinatorChangeDetail {
  */
 export class UIManager {
   private static panelContainer: HTMLElement | null = null;
+  private static disableParentElements = true;
   
   /**
    * Show the selector panel for the selected element
@@ -391,6 +392,9 @@ export class UIManager {
         this.setupResizeObserver(panel);
       }, 50);
       
+      // Set up storage change listener
+      this.setupStorageChangeListener(panel);
+      
     } catch (error) {
       console.error('DSN-DEBUG: Error in createSelectorPanel:', error);
     }
@@ -616,6 +620,77 @@ export class UIManager {
         </div>
       </div>
     `;
+  }
+  
+  /**
+   * Set up listener for storage changes to update panel behavior
+   */
+  private static setupStorageChangeListener(panel: HTMLElement): void {
+    // Listen for changes to storage
+    if (chrome && chrome.storage) {
+      chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'sync' && changes.disableParentElements) {
+          const newValue = changes.disableParentElements.newValue;
+          console.log('DSN-DEBUG: Storage setting changed - disableParentElements:', newValue);
+          
+          // Update our internal state
+          this.disableParentElements = newValue !== false;
+          
+          // Re-apply ID-related disabled states based on new setting
+          this.updateDisabledStatesForSetting(panel);
+        }
+      });
+      
+      // Initialize setting
+      chrome.storage.sync.get(['disableParentElements'], (result) => {
+        this.disableParentElements = result.disableParentElements !== false;
+        console.log('DSN-DEBUG: Initialized disableParentElements:', this.disableParentElements);
+        
+        // Apply initial state
+        if (panel) {
+          this.updateDisabledStatesForSetting(panel);
+        }
+      });
+    }
+  }
+  
+  /**
+   * Update disabled states based on current setting and ID selections
+   */
+  private static updateDisabledStatesForSetting(panel: HTMLElement): void {
+    // Find if any ID selectors are currently selected
+    const idSelectors = panel.querySelectorAll('.dsn-selector-item[data-selector-type="id"].dsn-selected');
+    
+    if (idSelectors.length > 0) {
+      // At least one ID is selected
+      
+      // Find the largest index (furthest from root) of elements with ID selectors
+      let idElementIndex = -1;
+      idSelectors.forEach(selector => {
+        const selectorIndex = selector.getAttribute('data-element-index');
+        if (selectorIndex && selectorIndex !== 'selected') {
+          const selectorIndexNum = parseInt(selectorIndex);
+          if (selectorIndexNum > idElementIndex) {
+            idElementIndex = selectorIndexNum;
+          }
+        }
+      });
+      
+      if (idElementIndex > -1) {
+        // If setting is enabled, disable parent elements
+        if (this.disableParentElements) {
+          console.log('DSN-DEBUG: Re-applying disabled state for ID at index', idElementIndex);
+          this.updateElementsDisabledStateForId(panel, true, idElementIndex);
+        } else {
+          // Setting is disabled, remove disabled states
+          console.log('DSN-DEBUG: Removing disabled state due to setting change');
+          this.updateElementsDisabledStateForId(panel, false);
+        }
+      }
+    }
+    
+    // Update the combined selector to reflect changes
+    updateCombinedSelector();
   }
   
   /**
