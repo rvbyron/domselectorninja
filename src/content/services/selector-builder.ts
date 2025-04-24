@@ -43,30 +43,13 @@ export function selectSelector(elementIndex: string, selector: string, selectorT
   const selectorSet = selectedSelectors.get(elementIndex);
   if (!selectorSet) return;
 
-  // Handle mutual exclusivity between tag and ID selectors
+  // Remove the mutual exclusivity check between tag and ID selectors
+  // Both can now be selected simultaneously
   if (selectorType === 'id') {
     isIdSelectorSelected = true;
-    
-    // If an ID is selected, clear any previously selected tag selectors
-    const tagsToRemove: string[] = [];
-    selectorSet.forEach(sel => {
-      if (sel.startsWith('tag:')) {
-        tagsToRemove.push(sel);
-      }
-    });
-    
-    tagsToRemove.forEach(tag => selectorSet.delete(tag));
+    // No longer removing tag selectors when ID is selected
   } else if (selectorType === 'tag') {
-    // If a tag is selected, clear any previously selected ID selectors
-    const idsToRemove: string[] = [];
-    selectorSet.forEach(sel => {
-      if (sel.startsWith('id:')) {
-        idsToRemove.push(sel);
-        isIdSelectorSelected = false;
-      }
-    });
-    
-    idsToRemove.forEach(id => selectorSet.delete(id));
+    // No longer removing ID selectors when tag is selected
   }
   
   // Handle pseudo-element exclusivity
@@ -271,11 +254,16 @@ export function updateMatchCount(count: number): void {
  * Update the combined selector based on current selections
  */
 export function updateCombinedSelector(): void {
+  // Get the combined selector element
   const combinedSelectorElement = document.getElementById('dsn-combined-selector');
   if (!combinedSelectorElement) return;
   
-  let selectorString = '';
-  let previousIndex: number | null = null;
+  // Calculate which elements are disabled
+  const disabledElements = new Set<string>();
+  document.querySelectorAll('.dsn-card-header.dsn-disabled').forEach(header => {
+    const index = header.getAttribute('data-index');
+    if (index) disabledElements.add(index);
+  });
   
   // Sort keys numerically to maintain correct order
   const keys = Array.from(selectedSelectors.keys())
@@ -286,14 +274,20 @@ export function updateCombinedSelector(): void {
       return parseInt(a) - parseInt(b);
     });
   
+  // Filter out disabled elements
+  const activeKeys = keys.filter(key => !disabledElements.has(key));
+  
+  let selectorString = '';
+  let previousIndex: number | null = null;
+  
   // Build selector with combinators between elements
-  for (const key of keys) {
+  for (const key of activeKeys) {
     // Skip keys with no selectors
     if (!selectedSelectors.has(key) || selectedSelectors.get(key)!.size === 0) {
       continue;
     }
     
-    // For each element that has selectors
+    // For each element that has selectors and is not disabled
     const currentIndex = key === 'selected' ? Infinity : parseInt(key);
     const selectorForElement = buildElementSelector(selectedSelectors.get(key)!);
     
@@ -381,6 +375,7 @@ function buildElementSelector(selectors: Set<string>): string {
     }
   });
   
+  // Return all selected parts in the correct order
   return [
     ...tagSelectors,           // 1. Tag names first (div, span)
     ...idSelectors,            // 2. Then IDs (#id)

@@ -742,7 +742,7 @@ export class UIManager {
             this.updateElementsDisabledStateForPseudo(panel, true, parseInt(elementIndex) || 0);
           }
           
-          // If this is an ID, disable all elements before this in the hierarchy
+          // If this is an ID, check settings before disabling parent elements
           if (selectorType === 'id') {
             this.updateElementsDisabledStateForId(panel, true, parseInt(elementIndex) || 0);
           }
@@ -953,51 +953,83 @@ export class UIManager {
    * Update the disabled state of elements before an element with ID selection
    */
   private static updateElementsDisabledStateForId(panel: HTMLElement, isDisabled: boolean, idElementIndex: number = 0): void {
+    // First check if parent elements should be disabled based on settings
+    chrome.storage.sync.get(['disableParentElements'], (result) => {
+      // If the setting is explicitly false, don't disable parent elements
+      if (result.disableParentElements === false) {
+        console.log('DSN-DEBUG: Not disabling parent elements due to user setting');
+        
+        // If we're turning off disabled state, continue with that
+        if (!isDisabled) {
+          this.removeIdRelatedDisabledState(panel);
+        }
+        
+        // Still update the selector to reflect changes
+        updateCombinedSelector();
+        return;
+      }
+      
+      // Proceed with normal behavior if setting is true or not set (default to true)
+      if (!isDisabled) {
+        this.removeIdRelatedDisabledState(panel);
+      } else {
+        this.applyIdRelatedDisabledState(panel, idElementIndex);
+      }
+      
+      // Update combined selector to reflect changes
+      updateCombinedSelector();
+    });
+  }
+  
+  /**
+   * Remove ID-related disabled state from elements
+   */
+  private static removeIdRelatedDisabledState(panel: HTMLElement): void {
     // Check if there's an active pseudo-element selector
     const hasActivePseudoSelector = panel.querySelector('.dsn-disabled-pseudo') !== null;
     
     // Get all card headers that should be affected by ID selection
     const cardHeaders = panel.querySelectorAll('.dsn-card-header');
     
-    // Remove ID-specific disabled states when turning off
-    if (!isDisabled) {
-      cardHeaders.forEach(header => {
-        // Only remove ID-related classes, preserve pseudo-related ones if present
-        header.classList.remove('dsn-disabled-id');
+    cardHeaders.forEach(header => {
+      // Only remove ID-related classes, preserve pseudo-related ones if present
+      header.classList.remove('dsn-disabled-id');
+      
+      // Only completely remove the disabled class if it's not also disabled by pseudo
+      const headerIndex = header.getAttribute('data-index');
+      if (!headerIndex) return;
+      
+      const index = parseInt(headerIndex);
+      const isDisabledByPseudo = hasActivePseudoSelector && this.shouldBeDisabledByPseudo(panel, index);
+      
+      if (!isDisabledByPseudo) {
+        header.classList.remove('dsn-disabled');
         
-        // Only completely remove the disabled class if it's not also disabled by pseudo
-        const headerIndex = header.getAttribute('data-index');
-        if (!headerIndex) return;
-        
-        const index = parseInt(headerIndex);
-        const isDisabledByPseudo = hasActivePseudoSelector && this.shouldBeDisabledByPseudo(panel, index);
-        
-        if (!isDisabledByPseudo) {
-          header.classList.remove('dsn-disabled');
-          
-          // Re-enable selector items
-          const content = header.nextElementSibling as HTMLElement;
-          if (content) {
-            const selectors = content.querySelectorAll('.dsn-selector-item');
-            selectors.forEach(selector => {
-              (selector as HTMLElement).removeAttribute('data-disabled');
-            });
-          }
+        // Re-enable selector items visually, but don't change their selection state
+        const content = header.nextElementSibling as HTMLElement;
+        if (content) {
+          const selectors = content.querySelectorAll('.dsn-selector-item');
+          selectors.forEach(selector => {
+            (selector as HTMLElement).removeAttribute('data-disabled');
+          });
         }
-      });
-      
-      // Handle the message
-      const idMessage = panel.querySelector('.dsn-id-message') as HTMLElement;
-      if (idMessage) {
-        idMessage.remove();
       }
-      
-      // Update combined selector
-      updateCombinedSelector();
-      return;
-    }
+    });
     
-    // Only proceed with disabling if isDisabled is true
+    // Handle the message
+    const idMessage = panel.querySelector('.dsn-id-message') as HTMLElement;
+    if (idMessage) {
+      idMessage.remove();
+    }
+  }
+  
+  /**
+   * Apply ID-related disabled state to elements
+   */
+  private static applyIdRelatedDisabledState(panel: HTMLElement, idElementIndex: number): void {
+    // Get all card headers that should be affected by ID selection
+    const cardHeaders = panel.querySelectorAll('.dsn-card-header');
+    
     cardHeaders.forEach(header => {
       const headerIndex = header.getAttribute('data-index');
       if (!headerIndex || headerIndex === 'selected') return;
@@ -1008,27 +1040,17 @@ export class UIManager {
       if (index < idElementIndex) {
         header.classList.add('dsn-disabled', 'dsn-disabled-id');
         
-        // Find all selector items for this element and disable them
+        // Find all selector items for this element and mark them as disabled
+        // BUT don't change their selection state
         const content = header.nextElementSibling as HTMLElement;
         if (content) {
           const selectors = content.querySelectorAll('.dsn-selector-item');
           selectors.forEach(selector => {
             (selector as HTMLElement).setAttribute('data-disabled', 'true');
-            
-            // If it was selected, deselect it
-            if (selector.classList.contains('dsn-selected')) {
-              selector.classList.remove('dsn-selected');
-              const selectorValue = selector.getAttribute('data-selector') || '';
-              const selectorType = selector.getAttribute('data-selector-type') || '';
-              deselectSelector(headerIndex, decodeURIComponent(selectorValue), selectorType);
-            }
           });
         }
       }
     });
-    
-    // Update combined selector to reflect changes
-    updateCombinedSelector();
   }
   
   /**

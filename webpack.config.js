@@ -8,7 +8,7 @@ module.exports = {
   entry: {
     background: './src/background/index.ts',
     content: './src/content/index.ts',
-    popup: './src/popup/index.ts',
+    popup: './src/popup/popup.js',
     // Add a selector entry if you need it, or remove the selector HTML plugin
   },
   output: {
@@ -26,7 +26,10 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        use: ['style-loader', 'css-loader'], // Add style-loader to inject CSS into the DOM
+        use: [
+          'style-loader', // This injects CSS into the DOM
+          'css-loader',   // This interprets @import and url() in CSS
+        ],
       },
     ],
   },
@@ -53,7 +56,7 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, 'public/html/popup.html'),
       filename: 'popup.html',
-      chunks: ['popup'],
+      chunks: ['popup'], // This ensures popup.js and its imported CSS are included
     }),
     // Comment out this plugin if you don't need selector.html or create the file
     // new HtmlWebpackPlugin({
