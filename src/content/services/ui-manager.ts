@@ -519,14 +519,36 @@ export class UIManager {
         <div>
           <h4 class="dsn-category-title">Core</h4>
           <ul class="dsn-selector-list" data-type="core">
-            ${coreSelectors.map(item => `
-              <li class="dsn-selector-item${item.type === 'pseudo' ? ' dsn-pseudo-item' : ''}" 
-                  data-selector="${encodeURIComponent(item.selector)}" 
-                  data-element-index="${index}"
-                  data-selector-type="${item.type}">
-                ${item.displaySelector || item.selector}
-              </li>
-            `).join('')}
+            ${coreSelectors.map(item => {
+              // Only add ellipsis menu for tag and ID selectors, not pseudo elements
+              const needsEllipsis = item.type === 'tag' || item.type === 'id';
+              return `
+                <li class="dsn-selector-item${item.type === 'pseudo' ? ' dsn-pseudo-item' : ''}" 
+                    data-selector="${encodeURIComponent(item.selector)}" 
+                    data-element-index="${index}"
+                    data-selector-type="${item.type}">
+                  <span class="dsn-selector-text">${item.displaySelector || item.selector}</span>
+                  ${needsEllipsis ? `
+                  <button class="dsn-ellipsis-icon" data-for-selector="${encodeURIComponent(item.selector)}" title="Options">
+                    <span>⋮</span>
+                  </button>
+                  <div class="dsn-item-context-menu" style="display:none;">
+                    <div class="dsn-menu-heading">${item.type === 'tag' ? 'Tag' : 'ID'} Options</div>
+                    <div class="dsn-menu-content">
+                      <label class="dsn-menu-item dsn-full-width-menu-item">
+                        <input type="checkbox" class="dsn-menu-checkbox dsn-not-toggle">
+                        Apply :not() modifier
+                      </label>
+                    </div>
+                    <div class="dsn-menu-actions">
+                      <button class="dsn-menu-apply-btn">Apply</button>
+                      <button class="dsn-menu-cancel-btn">Cancel</button>
+                    </div>
+                  </div>
+                  ` : ''}
+                </li>
+              `;
+            }).join('')}
           </ul>
         </div>
         
@@ -541,7 +563,23 @@ export class UIManager {
                     data-selector="${encodeURIComponent(selector)}" 
                     data-element-index="${index}"
                     data-selector-type="${isPseudoClass ? 'pseudo-class' : 'class'}">
-                  ${selector}
+                  <span class="dsn-selector-text">${selector}</span>
+                  <button class="dsn-ellipsis-icon" data-for-selector="${encodeURIComponent(selector)}" title="Options">
+                    <span>⋮</span>
+                  </button>
+                  <div class="dsn-item-context-menu" style="display:none;">
+                    <div class="dsn-menu-heading">${isPseudoClass ? 'Pseudo-class' : 'Class'} Options</div>
+                    <div class="dsn-menu-content">
+                      <label class="dsn-menu-item dsn-full-width-menu-item">
+                        <input type="checkbox" class="dsn-menu-checkbox dsn-not-toggle">
+                        Apply :not() modifier
+                      </label>
+                    </div>
+                    <div class="dsn-menu-actions">
+                      <button class="dsn-menu-apply-btn">Apply</button>
+                      <button class="dsn-menu-cancel-btn">Cancel</button>
+                    </div>
+                  </div>
                 </li>
               `;
             }).join('') : '<li class="dsn-selector-item dsn-empty-list">No classes available</li>'}
@@ -557,40 +595,46 @@ export class UIManager {
                   data-selector="${encodeURIComponent(selector)}" 
                   data-element-index="${index}"
                   data-selector-type="attribute">
-                ${selector}
-                <div class="dsn-ellipsis-icon" data-for-selector="${encodeURIComponent(selector)}"><span></span></div>
-                <div class="dsn-item-context-menu">
+                <span class="dsn-selector-text">${selector}</span>
+                <button class="dsn-ellipsis-icon" data-for-selector="${encodeURIComponent(selector)}" title="Options">
+                  <span>⋮</span>
+                </button>
+                <div class="dsn-item-context-menu" style="display:none;">
                   <div class="dsn-menu-heading">Attribute Options</div>
-                  
-                  <label class="dsn-menu-item dsn-full-width-menu-item">
-                    <input type="checkbox" class="dsn-menu-checkbox dsn-not-toggle">
-                    Apply :not() modifier
-                  </label>
-                  
-                  <div class="dsn-menu-divider"></div>
-                  
-                  <div class="dsn-menu-group">
-                    <label class="dsn-menu-label">Operator:</label>
-                    <div class="dsn-select-container">
-                      <select class="dsn-attribute-operator">
-                        <option value="=">= (Exact match)</option>
-                        <option value="*=">*= (Contains)</option>
-                        <option value="^=">^= (Starts with)</option>
-                        <option value="$=">$= (Ends with)</option>
-                        <option value="~=">~= (Word in list)</option>
-                        <option value="|=">|= (Starts with prefix)</option>
-                        <option value="">(Attribute exists)</option>
-                      </select>
-                      <div class="dsn-select-arrow"></div>
+                  <div class="dsn-menu-content">
+                    <label class="dsn-menu-item dsn-full-width-menu-item">
+                      <input type="checkbox" class="dsn-menu-checkbox dsn-not-toggle">
+                      Apply :not() modifier
+                    </label>
+                    
+                    <div class="dsn-menu-divider"></div>
+                    
+                    <div class="dsn-menu-group">
+                      <label class="dsn-menu-label">Operator:</label>
+                      <div class="dsn-select-container">
+                        <select class="dsn-attribute-operator">
+                          <option value="=">= (Exact match)</option>
+                          <option value="*=">*= (Contains)</option>
+                          <option value="^=">^= (Starts with)</option>
+                          <option value="$=">$= (Ends with)</option>
+                          <option value="~=">~= (Word in list)</option>
+                          <option value="|=">|= (Starts with prefix)</option>
+                          <option value="">(Attribute exists)</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div class="dsn-menu-group">
+                      <label class="dsn-menu-label">Value:</label>
+                      <div class="dsn-input-container">
+                        <input type="text" class="dsn-attribute-value" value="${selector.match(/="([^"]*)"/)?.[1] || ''}">
+                        <button class="dsn-reset-button" title="Reset to original value">↺</button>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div class="dsn-menu-group">
-                    <label class="dsn-menu-label">Value:</label>
-                    <div class="dsn-input-container">
-                      <input type="text" class="dsn-attribute-value" value="${selector.match(/="([^"]*)"/)?.[1] || ''}">
-                      <button class="dsn-reset-button" title="Reset to original value">↺</button>
-                    </div>
+                  <div class="dsn-menu-actions">
+                    <button class="dsn-menu-apply-btn">Apply</button>
+                    <button class="dsn-menu-cancel-btn">Cancel</button>
                   </div>
                 </div>
               </li>
@@ -828,99 +872,267 @@ export class UIManager {
       });
     });
     
-    // Set up listener for selector changes to update hierarchy styling
-    document.addEventListener('dsn-selector-changed', () => {
-      this.updateHierarchyElementStyling(panel);
-    });
-    
-    // Set up listener for combinator changes
-    document.addEventListener('dsn-combinator-changed', (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (!customEvent.detail) return;
+    // Add event handlers for ellipsis icons and context menus
+    const setupContextMenus = () => {
+      console.log('DSN-DEBUG: Setting up context menus');
       
-      // Type assertion to safely use the detail object
-      const detail = customEvent.detail as CombinatorChangeDetail;
-      const elementIndex = detail.elementIndex;
-      const combinator = detail.combinator;
+      // First, ensure all menus are initially hidden and have proper styles
+      panel.querySelectorAll('.dsn-item-context-menu').forEach(menu => {
+        (menu as HTMLElement).style.display = 'none';
+        (menu as HTMLElement).style.position = 'absolute';
+        (menu as HTMLElement).style.zIndex = '1000';
+      });
       
-      // Update UI to reflect combinator change
-      const combinatorLists = panel.querySelectorAll('.dsn-combinator-list');
-      combinatorLists.forEach(list => {
-        const cardHeader = list.closest('.dsn-card-content')?.closest('.dsn-card')?.querySelector('.dsn-card-header');
-        const listElementIndex = cardHeader?.getAttribute('data-index') || '';
+      // Using event delegation for efficiency
+      panel.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const ellipsisIcon = target.closest('.dsn-ellipsis-icon');
         
-        if (listElementIndex === elementIndex) {
-          // Find all combinators in this list
-          const combinatorItems = list.querySelectorAll('.dsn-selector-item');
+        if (ellipsisIcon) {
+          console.log('DSN-DEBUG: Ellipsis icon clicked!', ellipsisIcon.outerHTML);
+          e.preventDefault();
+          e.stopPropagation(); // Prevent triggering the selector item click
           
-          // Deselect all first
-          combinatorItems.forEach(item => {
-            item.classList.remove('dsn-selected');
+          const selectorItem = ellipsisIcon.closest('.dsn-selector-item');
+          if (!selectorItem) {
+            console.error('DSN-DEBUG: Parent .dsn-selector-item not found for ellipsis.');
+            return;
+          }
+          
+          const contextMenu = selectorItem.querySelector('.dsn-item-context-menu') as HTMLElement;
+          if (!contextMenu) {
+            console.error('DSN-DEBUG: .dsn-item-context-menu not found within selector item.');
+            console.log('DSN-DEBUG: Selector item HTML:', selectorItem.outerHTML);
+            return;
+          }
+          
+          // Hide all other menus first
+          panel.querySelectorAll('.dsn-item-context-menu').forEach(menu => {
+            if (menu !== contextMenu) {
+              (menu as HTMLElement).style.display = 'none';
+            }
           });
           
-          // If a combinator was specified, select it
-          if (combinator) {
-            const combinatorToSelect = Array.from(combinatorItems).find(
-              item => item.getAttribute('data-selector') === combinator
-            );
-            if (combinatorToSelect) {
-              combinatorToSelect.classList.add('dsn-selected');
+          // Toggle this menu using display property instead of class
+          const isCurrentlyVisible = contextMenu.style.display === 'block';
+          if (isCurrentlyVisible) {
+            contextMenu.style.display = 'none';
+            console.log('DSN-DEBUG: Context menu hidden');
+          } else {
+            // Position the menu correctly relative to the panel
+            const ellipsisRect = ellipsisIcon.getBoundingClientRect();
+            const selectorItemRect = selectorItem.getBoundingClientRect();
+            const panelRect = panel.getBoundingClientRect();
+            const panelContent = panel.querySelector('.dsn-panel-content') as HTMLElement;
+            
+            // First make the menu visible but with opacity 0 to measure its size
+            contextMenu.style.position = 'absolute'; // Ensure position is absolute
+            contextMenu.style.top = '0';
+            contextMenu.style.left = '0';
+            contextMenu.style.opacity = '0';
+            contextMenu.style.display = 'block';
+            
+            // Now that it's visible, get its dimensions
+            const menuWidth = contextMenu.offsetWidth;
+            const menuHeight = contextMenu.offsetHeight;
+            
+            // Important: These coordinates are relative to the content area of the panel
+            // We need to position within the panel's coordinate system
+            const panelContentRect = panelContent.getBoundingClientRect();
+            
+            // Calculate position relative to the panel (not the page)
+            // Since the menu is a child of the selector item, we need to position it
+            // relative to the panel's content area origin
+            console.log('DSN-DEBUG: Panel content rect:', panelContentRect);
+            console.log('DSN-DEBUG: Ellipsis rect:', ellipsisRect);
+            console.log('DSN-DEBUG: Selector item rect:', selectorItemRect);
+            let top = selectorItemRect.bottom + 5; // 5px gap below item
+            console.log('DSN-DEBUG: Top position:', top);
+            let left = selectorItemRect.left + panelContentRect.left;
+            console.log('DSN-DEBUG: Left position:', left);
+            
+            // Account for panel content scrolling
+//            top += panelContent.scrollTop;
+//            left += panelContent.scrollLeft;
+            
+            // Check boundaries and adjust
+            const contentWidth = panelContent.clientWidth;
+            const contentHeight = panelContent.clientHeight;
+            
+            // Ensure menu doesn't go off the right edge
+            if (left + menuWidth > ellipsisRect.left - 10) {
+              console.log('DSN-DEBUG: left + menuWidth > contentWidth - 10: ',left, menuWidth, contentWidth);
+              left = ellipsisRect.left - menuWidth - 10;
             }
+            
+            // Ensure menu doesn't go off left edge
+            if (left < 10) {
+              left = 10;
+            }
+            
+            // If menu would go off bottom edge, position it above the selector item instead
+            if (top + menuHeight > panelContentRect.bottom - 10) {
+              console.log('DSN-DEBUG: Changing top position:', top, panelContentRect.top, panelContentRect.bottom, menuHeight);
+              top = panelContentRect.bottom - menuHeight - 5; // Position above with 5px gap
+              console.log('DSN-DEBUG: Changing top position:', top);
+//              top += panelContent.scrollTop; // Adjust for scroll
+            }
+            
+            console.log('DSN-DEBUG: Top position:', top);
+            // Set the final position and make visible
+            contextMenu.style.top = `${top}px`;
+            contextMenu.style.left = `${left}px`;
+            contextMenu.style.opacity = '1';
+
+            console.log('DSN-DEBUG: Context menu shown at', {
+              top,
+              left,
+              selectorItemRect,
+              panelContentRect,
+              scrollTop: panelContent.scrollTop,
+              scrollLeft: panelContent.scrollLeft
+            });
           }
         }
+      }, true); // Use capture phase
+    };
+    
+    // Call the setup function
+    setupContextMenus();
+    
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.dsn-item-context-menu') && !target.closest('.dsn-ellipsis-icon')) {
+        console.log('DSN-DEBUG: Click outside menu/ellipsis, hiding all menus');
+        panel.querySelectorAll('.dsn-item-context-menu').forEach(menu => {
+          (menu as HTMLElement).style.display = 'none';
+        });
+      }
+    }, true);
+    
+    // Prevent click propagation in menus, but not for buttons
+    panel.querySelectorAll('.dsn-item-context-menu').forEach(menu => {
+      menu.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        
+        // Don't stop propagation for buttons so they can be handled by the panel click handler
+        if (!target.matches('.dsn-menu-apply-btn') && !target.matches('.dsn-menu-cancel-btn')) {
+          e.stopPropagation();
+        }
       });
     });
     
-    // Set default combinator (Descendant) when multiple elements are selected
-    document.addEventListener('dsn-selector-changed', () => {
-      // Check if multiple elements have selectors
-      const selectedSelectorsMap = (window as any).dsnSelectedSelectors;
-      if (!selectedSelectorsMap) return;
+    // Handle attribute selector menu buttons - add reset button handler
+    panel.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
       
-      // Count elements with selectors
-      let elementsWithSelectors = 0;
-      let lastElementWithSelectors: string | null = null;
-      
-      selectedSelectorsMap.forEach((selectors: Set<string>, index: string) => {
-        if (selectors.size > 0) {
-          elementsWithSelectors++;
-          lastElementWithSelectors = index;
-        }
-      });
-      
-      // If we have multiple elements with selectors
-      if (elementsWithSelectors > 1) {
-        // Get all elements in order
-        const indices = Array.from(selectedSelectorsMap.keys() as Iterable<string>)
-          .filter(idx => selectedSelectorsMap.get(idx).size > 0)
-          .sort((a, b) => {
-            if (a === 'selected') return 1;
-            if (b === 'selected') return -1;
-            return parseInt(a) - parseInt(b);
-          });
+      // Handle reset button for attribute value
+      if (target.matches('.dsn-reset-button')) {
+        console.log('DSN-DEBUG: Reset button clicked');
+        e.preventDefault();
+        e.stopPropagation();
         
-        // Go through each pair of adjacent elements and ensure a combinator exists
-        for (let i = 0; i < indices.length - 1; i++) {
-          const currentIdx = indices[i];
+        const menu = target.closest('.dsn-item-context-menu') as HTMLElement;
+        const selectorItem = menu?.closest('.dsn-selector-item');
+        if (!menu || !selectorItem) return;
+        
+        // Get the original selector to extract the original value
+        const originalSelectorAttr = selectorItem.getAttribute('data-original-selector') || 
+                                     selectorItem.getAttribute('data-selector');
+        
+        if (originalSelectorAttr) {
+          const originalSelector = decodeURIComponent(originalSelectorAttr);
           
-          // Check if a combinator is already selected
-          const combinatorMap = (window as any).dsnSelectedCombinators;
-          if (!combinatorMap || !combinatorMap.has(currentIdx)) {
-            // Select the default combinator for this element
-            const combinatorList = this.findCombinatorList(panel, currentIdx);
-            if (combinatorList) {
-              const defaultCombinator = combinatorList.querySelector('.dsn-selector-item[data-selector=" "]:not(.dsn-combinator-disabled)');
-              if (defaultCombinator && !defaultCombinator.classList.contains('dsn-selected')) {
-                // Programmatically select the default combinator
-                defaultCombinator.classList.add('dsn-selected');
-                // Explicitly cast currentIdx to string to fix type error
-                selectSelector(String(currentIdx), ' ', 'combinator');
-              }
+          // Extract the original value from the selector
+          const valueMatch = originalSelector.match(/="([^"]*)"/);
+          const originalValue = valueMatch ? valueMatch[1] : '';
+          
+          // Find the value input and reset it
+          const valueInput = menu.querySelector('.dsn-attribute-value') as HTMLInputElement;
+          if (valueInput) {
+            console.log('DSN-DEBUG: Resetting value from', valueInput.value, 'to', originalValue);
+            valueInput.value = originalValue;
+            
+            // Also reset the operator to its original state
+            const operatorSelect = menu.querySelector('.dsn-attribute-operator') as HTMLSelectElement;
+            if (operatorSelect) {
+              // Determine original operator
+              let originalOperator = '='; // Default
+              if (originalSelector.includes('*=')) originalOperator = '*=';
+              else if (originalSelector.includes('^=')) originalOperator = '^=';
+              else if (originalSelector.includes('$=')) originalOperator = '$=';
+              else if (originalSelector.includes('~=')) originalOperator = '~=';
+              else if (originalSelector.includes('|=')) originalOperator = '|=';
+              else if (!originalSelector.includes('=')) originalOperator = ''; // attribute exists only
+              
+              operatorSelect.value = originalOperator;
+              console.log('DSN-DEBUG: Reset operator to', originalOperator);
             }
           }
         }
       }
-    });
+      
+      // Handle apply button
+      if (target.matches('.dsn-menu-apply-btn')) {
+        console.log('DSN-DEBUG: Apply button clicked');
+        const menu = target.closest('.dsn-item-context-menu') as HTMLElement;
+        if (menu) {
+          const selectorItem = menu.closest('.dsn-selector-item') as HTMLElement;
+          if (!selectorItem) return;
+          
+          const selectorType = selectorItem.getAttribute('data-selector-type') || '';
+          const elementIndex = selectorItem.getAttribute('data-element-index') || '';
+          const originalSelector = decodeURIComponent(selectorItem.getAttribute('data-selector') || '');
+          
+          // Process attribute-specific changes if this is an attribute selector
+          if (selectorType === 'attribute') {
+            const operatorSelect = menu.querySelector('.dsn-attribute-operator') as HTMLSelectElement;
+            const valueInput = menu.querySelector('.dsn-attribute-value') as HTMLInputElement;
+            
+            if (operatorSelect && valueInput) {
+              // Process the attribute changes
+              this.handleAttributeChanges(operatorSelect, valueInput, selectorItem, originalSelector, elementIndex);
+            }
+          }
+          
+          // Process the :not modifier for ALL selector types
+          const notToggle = menu.querySelector('.dsn-not-toggle') as HTMLInputElement;
+          if (notToggle) {
+            // For attributes, get the updated selector after attribute changes
+            const currentSelector = selectorType === 'attribute' 
+              ? decodeURIComponent(selectorItem.getAttribute('data-selector') || '')
+              : originalSelector;
+            
+            // Apply or remove the :not modifier
+            this.handleNotToggle(notToggle, selectorItem, currentSelector, elementIndex, selectorType);
+          }
+          
+          // Explicitly close the menu
+          menu.style.display = 'none';
+          console.log('DSN-DEBUG: Menu closed after apply');
+          
+          // Stop propagation after handling to prevent double processing
+          e.stopPropagation();
+        }
+      }
+      
+      // Handle cancel button - use our centralized cancel handler
+      if (target.matches('.dsn-menu-cancel-btn')) {
+        console.log('DSN-DEBUG: Cancel button clicked');
+        const menu = target.closest('.dsn-item-context-menu') as HTMLElement;
+        if (menu) {
+          const selectorItem = menu.closest('.dsn-selector-item');
+          if (selectorItem) {
+            // Fix the type error by casting selectorItem to HTMLElement
+            this.handleMenuCancel(menu, selectorItem as HTMLElement);
+          }
+          
+          // Stop propagation
+          e.stopPropagation();
+        }
+      }
+    }, true); // Use capture phase to ensure this runs before other handlers
   }
   
   /**
@@ -1483,6 +1695,226 @@ export class UIManager {
     } catch (error) {
       console.error('DSN-DEBUG: Error in testShowPanel:', error);
     }
+  }
+
+  /**
+   * Handle attribute selector changes
+   */
+  private static handleAttributeChanges(operatorSelect: HTMLSelectElement, valueInput: HTMLInputElement, selectorItem: HTMLElement, originalSelector: string, elementIndex: string): void {
+    // Extract attribute name from original selector
+    const attrName = originalSelector.match(/\[([^\=\^\$\*\~\|]+)/)?.[1];
+    if (!attrName) return;
+    
+    // Build new attribute selector
+    let newSelector: string;
+    const operator = operatorSelect.value;
+    const value = valueInput.value.replace(/"/g, '\\"');
+    
+    if (operator === '') {
+      // Just attribute existence, no operator or value
+      newSelector = `[${attrName}]`;
+    } else {
+      // Full attribute selector with operator and value
+      newSelector = `[${attrName}${operator}"${value}"]`;
+    }
+    
+    // Check if the selector is currently selected
+    const isSelected = selectorItem.classList.contains('dsn-selected');
+    
+    // Update UI - ensure we find and update the selector text
+    const selectorText = selectorItem.querySelector('.dsn-selector-text');
+    if (selectorText) {
+      console.log('DSN-DEBUG: Updating selector text from', selectorText.textContent, 'to', newSelector);
+      selectorText.textContent = newSelector;
+    } else {
+      console.error('DSN-DEBUG: Could not find .dsn-selector-text element to update');
+      console.log('DSN-DEBUG: Selector item HTML:', selectorItem.outerHTML);
+    }
+    
+    // Store original if not already stored
+    if (!selectorItem.hasAttribute('data-original-selector')) {
+      selectorItem.setAttribute('data-original-selector', encodeURIComponent(originalSelector));
+    }
+    
+    // Update data-selector attribute
+    selectorItem.setAttribute('data-selector', encodeURIComponent(newSelector));
+    
+    // If the selector is currently selected, update it
+    if (isSelected) {
+      // First deselect the original
+      deselectSelector(elementIndex, originalSelector, 'attribute');
+      
+      // Then select with new selector
+      selectSelector(elementIndex, newSelector, 'attribute');
+    }
+    
+    console.log('DSN-DEBUG: Updated attribute selector:', { 
+      originalSelector, 
+      newSelector,
+      operator,
+      value
+    });
+  }
+
+  /**
+   * Handle toggling the :not modifier
+   */
+  private static handleNotToggle(checkbox: HTMLInputElement, selectorItem: HTMLElement, originalSelector: string, elementIndex: string, selectorType: string): void {
+    // Check if the selector is currently selected
+    const isSelected = selectorItem.classList.contains('dsn-selected');
+    
+    // Store original selector if not already stored
+    if (!selectorItem.hasAttribute('data-original-selector')) {
+      selectorItem.setAttribute('data-original-selector', encodeURIComponent(originalSelector));
+    }
+    
+    if (checkbox.checked) {
+      // Apply :not()
+      selectorItem.setAttribute('data-negated', 'true');
+      
+      // Create the not selector
+      const notSelector = `:not(${originalSelector})`;
+      
+      // Change visual display of the selector text
+      const selectorText = selectorItem.querySelector('.dsn-selector-text');
+      if (selectorText) {
+        selectorText.textContent = notSelector;
+      }
+      
+      // Update the data-selector attribute to include :not
+      selectorItem.setAttribute('data-selector', encodeURIComponent(notSelector));
+      
+      // If the selector is currently selected, update it in the selection model
+      if (isSelected) {
+        // First deselect the original
+        deselectSelector(elementIndex, originalSelector, selectorType);
+        
+        // Then select with :not
+        const originalSelectorType = selectorType;
+        selectorItem.setAttribute('data-selector-type', 'not');
+        selectSelector(elementIndex, notSelector, 'not');
+        
+        // Store the original selector type for when we uncheck :not
+        selectorItem.setAttribute('data-original-type', originalSelectorType);
+      }
+      
+      console.log('DSN-DEBUG: Applied :not() modifier to', originalSelector);
+    } else {
+      // Remove :not()
+      selectorItem.removeAttribute('data-negated');
+      
+      // Change visual display back to original
+      const selectorText = selectorItem.querySelector('.dsn-selector-text');
+      if (selectorText) {
+        selectorText.textContent = originalSelector;
+      }
+      
+      // Update the data-selector attribute back to original
+      selectorItem.setAttribute('data-selector', encodeURIComponent(originalSelector));
+      
+      // If the selector is currently selected, update it in the selection model
+      if (isSelected) {
+        // Get the original selector type or fallback to the current type
+        const originalType = selectorItem.getAttribute('data-original-type') || selectorType;
+        
+        // First deselect the negated version
+        deselectSelector(elementIndex, `:not(${originalSelector})`, 'not');
+        
+        // Then select with original
+        selectorItem.setAttribute('data-selector-type', originalType);
+        selectSelector(elementIndex, originalSelector, originalType);
+      }
+      
+      console.log('DSN-DEBUG: Removed :not() modifier from', originalSelector);
+    }
+    
+    // Update the combined selector to reflect changes
+    updateCombinedSelector();
+  }
+
+  /**
+   * Handle cancel button
+   */
+  private static handleMenuCancel(menu: HTMLElement, selectorItem: HTMLElement): void {
+    // Check if it's a simple not toggle menu or an attribute menu
+    const isAttributeMenu = Boolean(menu.querySelector('.dsn-attribute-operator'));
+    
+    // Get original and current selectors to compare
+    const originalSelectorAttr = selectorItem.getAttribute('data-original-selector') || 
+                                selectorItem.getAttribute('data-selector');
+    const currentSelectorAttr = selectorItem.getAttribute('data-selector');
+    
+    if (originalSelectorAttr && currentSelectorAttr) {
+      const originalSelector = decodeURIComponent(originalSelectorAttr);
+      const currentSelector = decodeURIComponent(currentSelectorAttr);
+      
+      if (isAttributeMenu) {
+        // Always reset form fields to original state
+        const operatorSelect = menu.querySelector('.dsn-attribute-operator') as HTMLSelectElement;
+        const valueInput = menu.querySelector('.dsn-attribute-value') as HTMLInputElement;
+        
+        if (operatorSelect && valueInput) {
+          // Parse original selector to determine original values
+          let originalOperator = '='; // Default
+          let originalValue = '';
+          
+          // Extract operator and value from original selector
+          if (originalSelector.includes('*=')) originalOperator = '*=';
+          else if (originalSelector.includes('^=')) originalOperator = '^=';
+          else if (originalSelector.includes('$=')) originalOperator = '$=';
+          else if (originalSelector.includes('~=')) originalOperator = '~=';
+          else if (originalSelector.includes('|=')) originalOperator = '|=';
+          else if (!originalSelector.includes('=')) originalOperator = '';
+          
+          // Extract value if present
+          const valueMatch = originalSelector.match(/="([^"]*)"/);
+          originalValue = valueMatch ? valueMatch[1] : '';
+          
+          // Reset form fields
+          operatorSelect.value = originalOperator;
+          valueInput.value = originalValue;
+        }
+      }
+      
+      // Reset not toggle for all menu types
+      const notToggle = menu.querySelector('.dsn-not-toggle') as HTMLInputElement;
+      if (notToggle) {
+        notToggle.checked = originalSelector.startsWith(':not(');
+      }
+      
+      // Restore data-selector and visual text if it was modified
+      if (originalSelector !== currentSelector) {
+        const selectorText = selectorItem.querySelector('.dsn-selector-text');
+        if (selectorText) {
+          selectorText.textContent = originalSelector;
+        }
+        selectorItem.setAttribute('data-selector', originalSelectorAttr);
+        
+        // If it was selected, update the actual selection
+        if (selectorItem.classList.contains('dsn-selected')) {
+          const elementIndex = selectorItem.getAttribute('data-element-index') || '';
+          const selectorType = selectorItem.getAttribute('data-selector-type') || '';
+          
+          // If currently using :not, deselect that first
+          if (selectorType === 'not') {
+            deselectSelector(elementIndex, currentSelector, 'not');
+            
+            // Restore original selector type
+            const originalSelectorType = selectorItem.getAttribute('data-original-type') || 'attribute';
+            selectorItem.setAttribute('data-selector-type', originalSelectorType);
+            selectSelector(elementIndex, originalSelector, originalSelectorType);
+          } else {
+            // Normal attribute deselection/selection
+            deselectSelector(elementIndex, currentSelector, selectorType);
+            selectSelector(elementIndex, originalSelector, selectorType);
+          }
+        }
+      }
+    }
+    
+    // Close the menu
+    menu.style.display = 'none';
+    console.log('DSN-DEBUG: Menu closed after cancel');
   }
 }
 

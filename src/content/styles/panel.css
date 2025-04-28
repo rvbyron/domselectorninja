@@ -1,0 +1,213 @@
+/* Add these styles to your existing panel.css */
+
+/* Selector item layout */
+.dsn-selector-item {
+  position: relative; /* Needed for absolute positioning of the context menu */
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+/* Selector text should fill available space */
+.dsn-selector-text {
+  flex: 1;
+}
+
+/* Ellipsis Icon and Context Menu */
+.dsn-ellipsis-icon {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  position: relative; /* Ensure z-index works */
+  border-radius: 50%;
+  margin-left: 4px;
+  visibility: visible !important; /* Force visibility */
+  opacity: 0.7;
+  background: transparent;
+  border: none;
+  transition: opacity 0.2s, background-color 0.2s;
+  z-index: 5; /* Make sure it's above the selector text */
+}
+
+.dsn-selector-item:hover .dsn-ellipsis-icon {
+  opacity: 1;
+}
+
+.dsn-ellipsis-icon:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Improve vertical dots styling */
+.dsn-ellipsis-icon span,
+.dsn-ellipsis-icon span::before,
+.dsn-ellipsis-icon span::after {
+  display: block;
+  width: 4px;
+  height: 4px;
+  background-color: #444;
+  border-radius: 50%;
+  position: absolute;
+}
+
+.dsn-ellipsis-icon span {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.dsn-ellipsis-icon span::before,
+.dsn-ellipsis-icon span::after {
+  content: '';
+  left: 0;
+}
+
+.dsn-ellipsis-icon span::before {
+  top: -6px;
+}
+
+.dsn-ellipsis-icon span::after {
+  top: 6px;
+}
+
+/* Context Menu */
+.dsn-item-context-menu {
+  position: absolute;
+  z-index: 10000; /* Ensure it's above everything else */
+  width: 240px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: none; /* Initially hidden */
+  padding: 0;
+  font-size: 0.9em;
+}
+
+.dsn-item-context-menu.dsn-menu-visible {
+  display: block !important; /* Force display when class is added */
+}
+
+.dsn-menu-heading {
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+  background-color: #f8f8f8;
+  border-radius: 4px 4px 0 0;
+}
+
+.dsn-menu-content {
+  padding: 8px 12px;
+}
+
+.dsn-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.dsn-menu-checkbox {
+  margin-right: 8px;
+}
+
+.dsn-menu-divider {
+  height: 1px;
+  background-color: #eee;
+  margin: 8px 0;
+}
+
+.dsn-menu-group {
+  margin-bottom: 8px;
+}
+
+.dsn-menu-label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+.dsn-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.dsn-attribute-operator {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.dsn-input-container {
+  display: flex;
+  align-items: center;
+}
+
+.dsn-attribute-value {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.dsn-reset-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1em;
+  color: #666;
+  padding: 0 8px;
+}
+
+/* Apply and Cancel buttons */
+.dsn-menu-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  background-color: #f8f8f8;
+  border-top: 1px solid #eee;
+  border-radius: 0 0 4px 4px;
+}
+
+.dsn-menu-apply-btn, 
+.dsn-menu-cancel-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background-color: white;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s;
+}
+
+.dsn-menu-apply-btn {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+  margin-left: 8px;
+}
+
+.dsn-menu-apply-btn:hover {
+  background-color: #2563eb;
+}
+
+.dsn-menu-cancel-btn:hover {
+  background-color: #f1f1f1;
+}
+
+/* Style for negated selectors */
+.dsn-selector-item[data-negated="true"] .dsn-selector-text {
+  color: #e74c3c;
+}

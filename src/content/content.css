@@ -555,7 +555,6 @@
   padding: 8px;
   border: 1px solid #e2e8f0;
   flex: 0 0 auto; /* Don't grow or shrink */
-  z-index: 3 !important; /* Ensure result section stays above disabled elements */
   position: relative !important;
 }
 
