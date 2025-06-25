@@ -29,7 +29,7 @@ console.log('DSN-DEBUG: Document readyState:', document.readyState);
     
     // Export services for debugging in development environments
     if (process.env.NODE_ENV === 'development') {
-      (window as any).__DSN = {
+      (window as unknown as { __DSN: { beginElementSelection: typeof beginElementSelection; UIManager: typeof UIManager; DomAnalyzer: typeof DomAnalyzer } }).__DSN = {
         beginElementSelection,
         UIManager,
         DomAnalyzer
@@ -48,7 +48,7 @@ console.log('DSN-DEBUG: Document readyState:', document.readyState);
 })();
 
 // Add a simple test function to check if injection is working properly
-(window as any).testDSN = () => {
+(window as unknown as { testDSN: () => string }).testDSN = () => {
   console.log('DSN-DEBUG: Test function called at', new Date().toISOString());
   return 'DSN is loaded';
 };

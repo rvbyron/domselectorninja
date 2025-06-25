@@ -49,6 +49,118 @@ export function deselectSelector(elementIndex: string, selector: string, selecto
 }
 
 /**
+ * Process selectors for an element and return organized selector parts
+ */
+function processElementSelectors(elementSelectors: Set<string>, skipCombinators: boolean = false): {
+  selectorParts: string[];
+  combinatorValue: string;
+  notSelectors: string[];
+} {
+  const tagSelectors: string[] = [];
+  const idSelectors: string[] = [];
+  const classSelectors: string[] = [];
+  const attrSelectors: string[] = [];
+  const pseudoClassSelectors: string[] = [];
+  const pseudoElementSelectors: string[] = [];
+  const notSelectors: string[] = [];
+  let combinatorValue = ' '; // Default to descendant combinator
+  
+  elementSelectors.forEach(selector => {
+    const [type, ...valueParts] = selector.split(':');
+    const value = valueParts.join(':');
+    
+    // Handle combinator
+    if (type === 'combinator') {
+      if (!skipCombinators) {
+        combinatorValue = value;
+      }
+      return;
+    }
+    
+    // Handle :not selectors (check both type and value for :not patterns)
+    if (type === 'not' || value.startsWith(':not(')) {
+      notSelectors.push(value);
+      return;
+    }
+    
+    // Sort other selectors into their respective groups
+    switch (type) {
+      case 'tag':
+        tagSelectors.push(value);
+        break;
+      case 'id':
+        idSelectors.push(value);
+        break;
+      case 'class':
+        classSelectors.push(value);
+        break;
+      case 'attribute':
+        attrSelectors.push(value);
+        break;
+      case 'pseudo-class':
+        pseudoClassSelectors.push(value);
+        break;
+      case 'pseudo':
+        pseudoElementSelectors.push(value);
+        break;
+      default:
+        classSelectors.push(value);
+    }
+  });
+  
+  // Combine selectors in proper CSS precedence order
+  // Note: :not selectors must be integrated here to maintain proper CSS syntax order
+  const consolidatedNotSelector = notSelectors.length > 0 ? consolidateNotSelectors(notSelectors) : '';
+  
+  const selectorParts = [
+    ...tagSelectors,
+    ...idSelectors,
+    ...classSelectors,
+    ...attrSelectors,
+    ...pseudoClassSelectors,
+    ...(consolidatedNotSelector ? [consolidatedNotSelector] : []), // Add :not before pseudo-elements
+    ...pseudoElementSelectors
+  ];
+  
+  return { selectorParts, combinatorValue, notSelectors: [] }; // Return empty notSelectors since they're now integrated
+}
+
+/**
+ * Consolidate multiple :not() selectors into a single :not() with comma-separated values
+ * Example: :not(.class1):not(.class2) becomes :not(.class1, .class2)
+ */
+function consolidateNotSelectors(notSelectors: string[]): string {
+  console.log('DSN-DEBUG: consolidateNotSelectors called with:', notSelectors);
+  if (notSelectors.length === 0) return '';
+  if (notSelectors.length === 1) {
+    console.log('DSN-DEBUG: Only one not selector, returning as-is:', notSelectors[0]);
+    return notSelectors[0];
+  }
+  
+  // Extract the content from each :not() selector
+  const notContents: string[] = [];
+  
+  for (const notSelector of notSelectors) {
+    console.log('DSN-DEBUG: Processing not selector:', notSelector);
+    // Match :not(...) and extract the content inside parentheses
+    const match = notSelector.match(/^:not\((.+)\)$/);
+    if (match) {
+      console.log('DSN-DEBUG: Extracted content:', match[1]);
+      notContents.push(match[1]);
+    } else {
+      // If it doesn't match the expected format, add as-is (fallback)
+      console.log('DSN-DEBUG: No match, adding as-is:', notSelector);
+      notContents.push(notSelector);
+    }
+  }
+  
+  // Combine all contents into a single :not() selector
+  const result = `:not(${notContents.join(', ')})`;
+  console.log('DSN-DEBUG: Final consolidated result:', result);
+  return result;
+}
+
+ /**
  * Update the combined selector displayed to the user
  */
 export function updateCombinedSelector(): void {
@@ -67,96 +179,24 @@ export function updateCombinedSelector(): void {
 
   // Collect all selector parts
   const selectorParts: string[] = [];
-  const notSelectorContents: string[] = []; // Store just the content inside :not()
 
-  // Process selectors in descending order of element index (furthest from root to closest)
+  // Process selectors in ascending order of element index (closest to root to furthest)
   const indices = Array.from(selectedSelectorsMap.keys())
     .filter(index => index !== 'selected') // Handle 'selected' separately
     .map(index => parseInt(index))
-    .sort((a, b) => b - a); // Sort in descending order
+    .sort((a, b) => a - b); // Sort in ascending order (ancestors first)
 
   // Add selectors for each ancestor element
   for (const index of indices) {
     const elementSelectors = selectedSelectorsMap.get(index.toString());
     if (!elementSelectors || elementSelectors.size === 0) continue;
 
-    // Organize selectors into groups by type to ensure proper precedence
-    let tagSelectors: string[] = [];
-    let idSelectors: string[] = [];
-    let classSelectors: string[] = [];
-    let attrSelectors: string[] = [];
-    let pseudoClassSelectors: string[] = [];
-    let pseudoElementSelectors: string[] = [];
-    let combinatorValue = ' '; // Default to descendant combinator
-    
-    // Process regular selectors first
-    elementSelectors.forEach(selector => {
-      // Split the selector entry into type and value
-      const [type, ...valueParts] = selector.split(':');
-      const value = valueParts.join(':'); // Rejoin in case the value contains colons
-      
-      // Handle combinator separately
-      if (type === 'combinator') {
-        combinatorValue = value;
-        return;
-      }
-      
-      // Check if this is a :not selector
-      if (type === 'not') {
-        // Extract the inner content from the :not() selector
-        const notContent = value.match(/^\:not\(([^\)]+)\)$/);
-        if (notContent && notContent[1]) {
-          notSelectorContents.push(notContent[1]);
-        } else {
-          // Fallback for direct extraction if regex fails
-          const innerContent = value.substring(5, value.length - 1);
-          if (innerContent) {
-            notSelectorContents.push(innerContent);
-          }
-        }
-      } else {
-        // Sort other selectors into their respective groups
-        switch (type) {
-          case 'tag':
-            tagSelectors.push(value);
-            break;
-          case 'id':
-            idSelectors.push(value);
-            break;
-          case 'class':
-            classSelectors.push(value);
-            break;
-          case 'attribute':
-            attrSelectors.push(value);
-            break;
-          case 'pseudo-class':
-            pseudoClassSelectors.push(value);
-            break;
-          case 'pseudo':
-            pseudoElementSelectors.push(value);
-            break;
-          default:
-            // Any unknown types
-            classSelectors.push(value);
-        }
-      }
-    });
-    
-    // Combine selectors in proper order: tag > id > class > attr > pseudo-class > pseudo-element
-    const elementSelectorParts: string[] = [
-      ...tagSelectors,
-      ...idSelectors,
-      ...classSelectors,
-      ...attrSelectors,
-      ...pseudoClassSelectors,
-      ...pseudoElementSelectors
-    ];
+    const { selectorParts: elementSelectorParts, combinatorValue } = processElementSelectors(elementSelectors, false);
     
     // If we have selectors for this element, add them with the appropriate combinator
     if (elementSelectorParts.length > 0) {
       // Add the combinator if we already have selectors
       if (selectorParts.length > 0) {
-        // Don't add combinator if it's the first element
         selectorParts.push(combinatorValue);
       }
       
@@ -168,72 +208,7 @@ export function updateCombinedSelector(): void {
   // Add selectors for the selected element itself
   const selectedSelectors = selectedSelectorsMap.get('selected');
   if (selectedSelectors && selectedSelectors.size > 0) {
-    // Organize selectors into groups by type to ensure proper precedence
-    let tagSelectors: string[] = [];
-    let idSelectors: string[] = [];
-    let classSelectors: string[] = [];
-    let attrSelectors: string[] = [];
-    let pseudoClassSelectors: string[] = [];
-    let pseudoElementSelectors: string[] = [];
-    
-    selectedSelectors.forEach(selector => {
-      // Split the selector entry into type and value
-      const [type, ...valueParts] = selector.split(':');
-      const value = valueParts.join(':'); // Rejoin in case the value contains colons
-      
-      // Skip combinators, they don't apply to the selected element
-      if (type === 'combinator') return;
-      
-      // Handle not selectors
-      if (type === 'not') {
-        // Extract the inner content from the :not() selector
-        const notContent = value.match(/^\:not\(([^\)]+)\)$/);
-        if (notContent && notContent[1]) {
-          notSelectorContents.push(notContent[1]);
-        } else {
-          // Fallback for direct extraction if regex fails
-          const innerContent = value.substring(5, value.length - 1);
-          if (innerContent) {
-            notSelectorContents.push(innerContent);
-          }
-        }
-      } else {
-        // Sort other selectors into their respective groups
-        switch (type) {
-          case 'tag':
-            tagSelectors.push(value);
-            break;
-          case 'id':
-            idSelectors.push(value);
-            break;
-          case 'class':
-            classSelectors.push(value);
-            break;
-          case 'attribute':
-            attrSelectors.push(value);
-            break;
-          case 'pseudo-class':
-            pseudoClassSelectors.push(value);
-            break;
-          case 'pseudo':
-            pseudoElementSelectors.push(value);
-            break;
-          default:
-            // Any unknown types
-            classSelectors.push(value);
-        }
-      }
-    });
-    
-    // Combine selectors in proper order: tag > id > class > attr > pseudo-class > pseudo-element
-    const selectedParts: string[] = [
-      ...tagSelectors,
-      ...idSelectors,
-      ...classSelectors,
-      ...attrSelectors,
-      ...pseudoClassSelectors,
-      ...pseudoElementSelectors
-    ];
+    const { selectorParts: selectedParts } = processElementSelectors(selectedSelectors, true);
     
     // Add the selected element selectors with appropriate combinator if needed
     if (selectedParts.length > 0) {
@@ -250,14 +225,11 @@ export function updateCombinedSelector(): void {
   // Create the final selector string
   let finalSelector = selectorParts.join('');
   
-  // Add the grouped :not() expression if we have any not selectors
-  if (notSelectorContents.length > 0) {
-    finalSelector += `:not(${notSelectorContents.join(', ')})`;
-  }
+  // Note: :not selectors are now integrated into compound selectors at the proper position
+  // No need to add them separately at the end
   
   // Log the constructed selector for debugging
   console.log('DSN-DEBUG: Generated selector:', finalSelector);
-  console.log('DSN-DEBUG: Not contents:', notSelectorContents);
   
   // Update the displayed selector
   combinedSelector.textContent = finalSelector || 'No elements selected';
@@ -367,3 +339,4 @@ document.addEventListener('dsn-reset-selectors', () => {
   // Update the UI
   updateCombinedSelector();
 });
+

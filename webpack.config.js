@@ -8,8 +8,7 @@ module.exports = {
   entry: {
     background: './src/background/index.ts',
     content: './src/content/index.ts',
-    popup: './src/popup/popup.js',
-    // Add a selector entry if you need it, or remove the selector HTML plugin
+    popup: './src/popup/index.ts',
   },
   output: {
     path: path.resolve(__dirname, 'dist'),

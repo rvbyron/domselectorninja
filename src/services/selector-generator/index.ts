@@ -1,39 +1,63 @@
-// Properly import types from utils/types.ts to ensure they match
+// Import types and generator functions
 import { SelectorInfo, SelectorGroups } from '@utils/types';
+import { generateAllSelectors } from './generator';
 
 export class SelectorGenerator {
   /**
    * Generate all possible selectors for a given element
    */
-  static generateSelectors(element: Element, doc: Document): SelectorGroups {
-    return {
-      core: SelectorGenerator.generateCoreSelectors(element, doc),
-      class: SelectorGenerator.generateClassSelectors(element, doc),
-      attribute: SelectorGenerator.generateAttributeSelectors(element, doc),
-      combinator: SelectorGenerator.generateCombinatorSelectors(element, doc)
-    };
+  static generateSelectors(element: Element, _doc: Document): SelectorGroups {
+    // Get ancestors for combinator selectors
+    const ancestors: Element[] = [];
+    let current = element.parentElement;
+    while (current) {
+      ancestors.push(current);
+      current = current.parentElement;
+    }
+
+    const result = generateAllSelectors(element, ancestors);
+    return result.selectors;
   }
 
-  // Use underscore prefix for unused parameters
-  private static generateCoreSelectors(_element: Element, _doc: Document): SelectorInfo[] {
-    // Your implementation here
-    // Make sure each SelectorInfo.type is one of: "core", "class", "attribute", "combinator"
-    return [];
+  // Legacy methods for backward compatibility
+  private static generateCoreSelectors(element: Element, _doc: Document): SelectorInfo[] {
+    const ancestors: Element[] = [];
+    let current = element.parentElement;
+    while (current) {
+      ancestors.push(current);
+      current = current.parentElement;
+    }
+    return generateAllSelectors(element, ancestors).selectors.core;
   }
 
-  private static generateClassSelectors(_element: Element, _doc: Document): SelectorInfo[] {
-    // Your implementation here
-    return [];
+  private static generateClassSelectors(element: Element, _doc: Document): SelectorInfo[] {
+    const ancestors: Element[] = [];
+    let current = element.parentElement;
+    while (current) {
+      ancestors.push(current);
+      current = current.parentElement;
+    }
+    return generateAllSelectors(element, ancestors).selectors.class;
   }
 
-  private static generateAttributeSelectors(_element: Element, _doc: Document): SelectorInfo[] {
-    // Your implementation here
-    return [];
+  private static generateAttributeSelectors(element: Element, _doc: Document): SelectorInfo[] {
+    const ancestors: Element[] = [];
+    let current = element.parentElement;
+    while (current) {
+      ancestors.push(current);
+      current = current.parentElement;
+    }
+    return generateAllSelectors(element, ancestors).selectors.attribute;
   }
 
-  private static generateCombinatorSelectors(_element: Element, _doc: Document): SelectorInfo[] {
-    // Your implementation here
-    return [];
+  private static generateCombinatorSelectors(element: Element, _doc: Document): SelectorInfo[] {
+    const ancestors: Element[] = [];
+    let current = element.parentElement;
+    while (current) {
+      ancestors.push(current);
+      current = current.parentElement;
+    }
+    return generateAllSelectors(element, ancestors).selectors.combinator;
   }
 }
 

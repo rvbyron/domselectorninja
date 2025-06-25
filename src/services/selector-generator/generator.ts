@@ -2,13 +2,7 @@
  * Functions for generating CSS selectors
  */
 import { isSelectorUnique } from '@services/dom-analyzer/element-finder';
-
-export interface SelectorInfo {
-  type: 'core' | 'class' | 'attribute' | 'combinator';
-  selector: string;
-  isUnique: boolean;
-  isValid: boolean;
-}
+import { SelectorInfo, SelectorType } from '@utils/types';
 
 export interface ElementSelectorData {
   element: Element;
@@ -49,8 +43,10 @@ function generateCoreSelectors(element: Element): SelectorInfo[] {
   selectors.push({
     type: 'core',
     selector: tagSelector,
+    specificity: 1,
     isUnique: isSelectorUnique(tagSelector, element),
-    isValid: true
+    isValid: true,
+    description: `Tag selector for ${tagSelector} elements`
   });
   
   // ID selector (if present)
@@ -59,8 +55,10 @@ function generateCoreSelectors(element: Element): SelectorInfo[] {
     selectors.push({
       type: 'core',
       selector: idSelector,
+      specificity: 100,
       isUnique: isSelectorUnique(idSelector, element),
-      isValid: true
+      isValid: true,
+      description: `ID selector for element with id="${element.id}"`
     });
   }
   
@@ -68,8 +66,10 @@ function generateCoreSelectors(element: Element): SelectorInfo[] {
   selectors.push({
     type: 'core',
     selector: '*',
+    specificity: 0,
     isUnique: false, // Universal is never unique
-    isValid: true
+    isValid: true,
+    description: 'Universal selector - matches any element'
   });
   
   // Pseudo-classes (examples)
@@ -77,8 +77,10 @@ function generateCoreSelectors(element: Element): SelectorInfo[] {
     selectors.push({
       type: 'core',
       selector: `:first-child`,
+      specificity: 10,
       isUnique: isSelectorUnique(`:first-child`, element),
-      isValid: true
+      isValid: true,
+      description: 'Selects the first child element'
     });
   }
   
@@ -86,8 +88,10 @@ function generateCoreSelectors(element: Element): SelectorInfo[] {
     selectors.push({
       type: 'core',
       selector: `:last-child`,
+      specificity: 10,
       isUnique: isSelectorUnique(`:last-child`, element),
-      isValid: true
+      isValid: true,
+      description: 'Selects the last child element'
     });
   }
   
@@ -106,8 +110,10 @@ function generateClassSelectors(element: Element): SelectorInfo[] {
     selectors.push({
       type: 'class',
       selector: classSelector,
+      specificity: 10,
       isUnique: isSelectorUnique(classSelector, element),
-      isValid: true
+      isValid: true,
+      description: `Class selector for "${className}"`
     });
   }
   
@@ -117,8 +123,10 @@ function generateClassSelectors(element: Element): SelectorInfo[] {
     selectors.push({
       type: 'class',
       selector: combinedClassSelector,
+      specificity: element.classList.length * 10,
       isUnique: isSelectorUnique(combinedClassSelector, element),
-      isValid: true
+      isValid: true,
+      description: `Combined class selector for ${element.classList.length} classes`
     });
   }
   
@@ -140,8 +148,10 @@ function generateAttributeSelectors(element: Element): SelectorInfo[] {
     selectors.push({
       type: 'attribute',
       selector: attrSelector,
+      specificity: 10,
       isUnique: isSelectorUnique(attrSelector, element),
-      isValid: true
+      isValid: true,
+      description: `Attribute selector for ${attr.name}="${attr.value}"`
     });
     
     // Contains
@@ -149,8 +159,10 @@ function generateAttributeSelectors(element: Element): SelectorInfo[] {
     selectors.push({
       type: 'attribute',
       selector: containsSelector,
+      specificity: 10,
       isUnique: isSelectorUnique(containsSelector, element),
-      isValid: true
+      isValid: true,
+      description: `Attribute contains selector for ${attr.name}*="${attr.value}"`
     });
   }
   
@@ -170,8 +182,10 @@ function generateCombinatorSelectors(element: Element, _ancestors: Element[]): S
     selectors.push({
       type: 'combinator',
       selector: childSelector,
+      specificity: 2,
       isUnique: isSelectorUnique(childSelector, element),
-      isValid: true
+      isValid: true,
+      description: `Child selector: ${parentTag} direct child ${element.tagName.toLowerCase()}`
     });
   }
   
@@ -182,8 +196,10 @@ function generateCombinatorSelectors(element: Element, _ancestors: Element[]): S
     selectors.push({
       type: 'combinator',
       selector: siblingSelector,
+      specificity: 2,
       isUnique: isSelectorUnique(siblingSelector, element),
-      isValid: true
+      isValid: true,
+      description: `Adjacent sibling: ${prevSibling.tagName.toLowerCase()} followed by ${element.tagName.toLowerCase()}`
     });
   }
   
@@ -195,8 +211,10 @@ function generateCombinatorSelectors(element: Element, _ancestors: Element[]): S
     selectors.push({
       type: 'combinator',
       selector: nthSelector,
+      specificity: 11,
       isUnique: isSelectorUnique(nthSelector, element),
-      isValid: true
+      isValid: true,
+      description: `nth-child: ${index}${index === 1 ? 'st' : index === 2 ? 'nd' : index === 3 ? 'rd' : 'th'} child of type ${element.tagName.toLowerCase()}`
     });
   }
   

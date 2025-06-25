@@ -67,34 +67,66 @@ main {
   font-size: 0.9rem;
 }
 
-.settings {
+.settings-section {
   background-color: white;
   border-radius: 8px;
   padding: 16px;
   box-shadow: var(--box-shadow);
 }
 
-.settings h2 {
+.section-title {
   margin: 0 0 12px 0;
   font-size: 1.2rem;
   color: var(--primary-color);
+  font-weight: 600;
+}
+
+.settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .setting-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
 }
 
-.setting-item label {
-  font-size: 0.9rem;
+.setting-info {
   flex: 1;
+  margin-right: 12px;
 }
 
-.setting-item input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+.setting-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.setting-description {
+  font-size: 12px;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.setting-control {
+  display: flex;
+  align-items: center;
+}
+
+.setting-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
   accent-color: var(--primary-color);
 }
 

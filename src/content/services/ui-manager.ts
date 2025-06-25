@@ -4,7 +4,7 @@
 
 import { ElementData, AncestorElement } from '@utils/types';
 import { asHTMLElement } from '@utils/dom-types';
-import { PSEUDO_ELEMENTS, PSEUDO_CLASSES, COMBINATOR_SELECTORS } from '../constants/selector-constants';
+import { PSEUDO_ELEMENTS, PSEUDO_CLASSES, COMBINATOR_SELECTORS, NTH_SELECTOR_OPTIONS, NTH_PSEUDO_TYPES } from '../constants/selector-constants';
 import { selectSelector, deselectSelector, updateCombinedSelector } from './selector-builder';
 
 console.log('DSN-DEBUG: ui-manager.ts loaded');
@@ -570,6 +570,7 @@ export class UIManager {
                   <div class="dsn-item-context-menu" style="display:none;">
                     <div class="dsn-menu-heading">${isPseudoClass ? 'Pseudo-class' : 'Class'} Options</div>
                     <div class="dsn-menu-content">
+                      ${this.generateNthOptionsIfApplicable(selector)}
                       <label class="dsn-menu-item dsn-full-width-menu-item">
                         <input type="checkbox" class="dsn-menu-checkbox dsn-not-toggle">
                         Apply :not() modifier
@@ -802,9 +803,7 @@ export class UIManager {
     
     selectorItems.forEach(item => {
       const selectorElement = item as HTMLElement;
-      const selector = decodeURIComponent(selectorElement.getAttribute('data-selector') || '');
       const elementIndex = selectorElement.getAttribute('data-element-index') || '';
-      const selectorType = selectorElement.getAttribute('data-selector-type') || '';
       
       // Initially none should be selected since we clear on panel open
       selectorElement.classList.remove('dsn-selected');
@@ -815,6 +814,10 @@ export class UIManager {
             selectorElement.getAttribute('data-disabled') === 'true') {
           return;
         }
+        
+        // Read current values from DOM at click time (not at setup time)
+        const selector = decodeURIComponent(selectorElement.getAttribute('data-selector') || '');
+        const selectorType = selectorElement.getAttribute('data-selector-type') || '';
         
         // Toggle selection state
         if (selectorElement.classList.contains('dsn-selected')) {
@@ -831,6 +834,9 @@ export class UIManager {
           if (selectorType === 'id') {
             this.updateElementsDisabledStateForId(panel, false);
           }
+          
+          // Note: We don't restore original selector attributes when deselecting
+          // The :not modifier state should persist until explicitly unchecked by the user
         } else {
           // Select
           selectorElement.classList.add('dsn-selected');
@@ -1083,7 +1089,10 @@ export class UIManager {
           
           const selectorType = selectorItem.getAttribute('data-selector-type') || '';
           const elementIndex = selectorItem.getAttribute('data-element-index') || '';
-          const originalSelector = decodeURIComponent(selectorItem.getAttribute('data-selector') || '');
+          // Use original selector if available, otherwise use current selector
+          const originalSelector = selectorItem.getAttribute('data-original-selector') 
+            ? decodeURIComponent(selectorItem.getAttribute('data-original-selector') || '')
+            : decodeURIComponent(selectorItem.getAttribute('data-selector') || '');
           
           // Process attribute-specific changes if this is an attribute selector
           if (selectorType === 'attribute') {
@@ -1096,16 +1105,30 @@ export class UIManager {
             }
           }
           
+          // Process nth pseudo-selector changes if this is an nth selector
+          // Check current selector, not original, in case it was already modified
+          const currentSelector = decodeURIComponent(selectorItem.getAttribute('data-selector') || '');
+          if (this.isNthPseudoSelector(currentSelector) || this.isNthPseudoSelector(originalSelector)) {
+            const nthSelect = menu.querySelector('.dsn-nth-select') as HTMLSelectElement;
+            const customInput = menu.querySelector('.dsn-nth-custom') as HTMLInputElement;
+            
+            if (nthSelect) {
+              // Process the nth parameter changes
+              this.handleNthChanges(nthSelect, customInput, selectorItem, originalSelector, elementIndex);
+            }
+          }
+          
           // Process the :not modifier for ALL selector types
           const notToggle = menu.querySelector('.dsn-not-toggle') as HTMLInputElement;
           if (notToggle) {
-            // For attributes, get the updated selector after attribute changes
-            const currentSelector = selectorType === 'attribute' 
-              ? decodeURIComponent(selectorItem.getAttribute('data-selector') || '')
-              : originalSelector;
+            // Get the updated selector after any previous changes (attribute, nth, etc.)
+            const currentSelector = decodeURIComponent(selectorItem.getAttribute('data-selector') || '');
+            
+            // Get the original selector type (for :not modifiers, we need the underlying type)
+            const originalSelectorType = selectorItem.getAttribute('data-original-type') || selectorType;
             
             // Apply or remove the :not modifier
-            this.handleNotToggle(notToggle, selectorItem, currentSelector, elementIndex, selectorType);
+            this.handleNotToggle(notToggle, selectorItem, currentSelector, elementIndex, originalSelectorType);
           }
           
           // Explicitly close the menu
@@ -1133,6 +1156,29 @@ export class UIManager {
         }
       }
     }, true); // Use capture phase to ensure this runs before other handlers
+
+    // Handle nth selector dropdown changes
+    panel.addEventListener('change', (e) => {
+      const target = e.target as HTMLElement;
+      
+      if (target.matches('.dsn-nth-select')) {
+        const select = target as HTMLSelectElement;
+        const customContainer = select.closest('.dsn-menu-group')?.querySelector('.dsn-custom-input-container') as HTMLElement;
+        
+        if (customContainer) {
+          // Show/hide custom input based on selection
+          if (select.value === 'custom') {
+            customContainer.style.display = 'block';
+            const customInput = customContainer.querySelector('.dsn-nth-custom') as HTMLInputElement;
+            if (customInput) {
+              customInput.focus();
+            }
+          } else {
+            customContainer.style.display = 'none';
+          }
+        }
+      }
+    });
   }
   
   /**
@@ -1803,33 +1849,158 @@ export class UIManager {
       // Remove :not()
       selectorItem.removeAttribute('data-negated');
       
+      // Get the actual original selector (without :not wrapper)
+      const actualOriginalSelector = selectorItem.getAttribute('data-original-selector') 
+        ? decodeURIComponent(selectorItem.getAttribute('data-original-selector') || '')
+        : originalSelector.replace(/^:not\((.+)\)$/, '$1'); // Extract from :not() if needed
+      
       // Change visual display back to original
       const selectorText = selectorItem.querySelector('.dsn-selector-text');
       if (selectorText) {
-        selectorText.textContent = originalSelector;
+        selectorText.textContent = actualOriginalSelector;
       }
       
       // Update the data-selector attribute back to original
-      selectorItem.setAttribute('data-selector', encodeURIComponent(originalSelector));
+      selectorItem.setAttribute('data-selector', encodeURIComponent(actualOriginalSelector));
       
       // If the selector is currently selected, update it in the selection model
       if (isSelected) {
         // Get the original selector type or fallback to the current type
         const originalType = selectorItem.getAttribute('data-original-type') || selectorType;
         
-        // First deselect the negated version
-        deselectSelector(elementIndex, `:not(${originalSelector})`, 'not');
+        // First deselect the current :not version (use originalSelector as it's the current :not() selector)
+        deselectSelector(elementIndex, originalSelector, 'not');
         
         // Then select with original
         selectorItem.setAttribute('data-selector-type', originalType);
-        selectSelector(elementIndex, originalSelector, originalType);
+        selectSelector(elementIndex, actualOriginalSelector, originalType);
       }
       
-      console.log('DSN-DEBUG: Removed :not() modifier from', originalSelector);
+      console.log('DSN-DEBUG: Removed :not() modifier from', originalSelector, 'back to', actualOriginalSelector);
     }
     
     // Update the combined selector to reflect changes
     updateCombinedSelector();
+  }
+
+  /**
+   * Restore original selector attributes when deselecting a :not selector
+   */
+  private static restoreOriginalSelectorAttributes(selectorElement: HTMLElement): void {
+    const originalSelectorAttr = selectorElement.getAttribute('data-original-selector');
+    const originalType = selectorElement.getAttribute('data-original-type');
+    
+    if (originalSelectorAttr && originalType) {
+      // Restore the original selector text in the UI
+      const selectorText = selectorElement.querySelector('.dsn-selector-text');
+      if (selectorText) {
+        const originalSelector = decodeURIComponent(originalSelectorAttr);
+        selectorText.textContent = originalSelector;
+      }
+      
+      // Restore the original data attributes
+      selectorElement.setAttribute('data-selector', originalSelectorAttr);
+      selectorElement.setAttribute('data-selector-type', originalType);
+      
+      // Remove :not-specific attributes
+      selectorElement.removeAttribute('data-negated');
+      selectorElement.removeAttribute('data-original-selector');
+      selectorElement.removeAttribute('data-original-type');
+      
+      console.log('DSN-DEBUG: Restored original selector attributes after :not deselection');
+    }
+  }
+
+  /**
+   * Generate nth selector options HTML if applicable
+   */
+  private static generateNthOptionsIfApplicable(selector: string): string {
+    if (!this.isNthPseudoSelector(selector)) {
+      return '';
+    }
+
+    // Extract current parameter from selector
+    const currentParam = selector.match(/\(([^)]+)\)/)?.[1] || 'odd';
+    
+    return `
+      <div class="dsn-menu-group">
+        <label class="dsn-menu-label">Nth Parameter:</label>
+        <div class="dsn-select-container">
+          <select class="dsn-nth-select">
+            ${NTH_SELECTOR_OPTIONS.map(option => `
+              <option value="${option.value}" ${option.value === currentParam ? 'selected' : ''} title="${option.description}">
+                ${option.display}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+        <div class="dsn-custom-input-container" style="display: ${currentParam === 'custom' || !NTH_SELECTOR_OPTIONS.find(opt => opt.value === currentParam) ? 'block' : 'none'}">
+          <input type="text" class="dsn-nth-custom" placeholder="e.g., 2n+1, 3n-1" value="${currentParam === 'custom' || !NTH_SELECTOR_OPTIONS.find(opt => opt.value === currentParam) ? currentParam : ''}">
+        </div>
+      </div>
+      <div class="dsn-menu-divider"></div>
+    `;
+  }
+
+  /**
+   * Check if a selector is an nth pseudo-selector
+   */
+  private static isNthPseudoSelector(selector: string): boolean {
+    return /^:nth-(child|last-child|of-type|last-of-type)\(/.test(selector);
+  }
+
+  /**
+   * Handle changes to nth pseudo-selector parameters
+   */
+  private static handleNthChanges(nthSelect: HTMLSelectElement, customInput: HTMLInputElement | null, selectorItem: HTMLElement, originalSelector: string, elementIndex: string): void {
+    const selectedValue = nthSelect.value;
+    const isSelected = selectorItem.classList.contains('dsn-selected');
+    
+    // Get the CURRENT selector from the element (not the original)
+    const currentSelector = decodeURIComponent(selectorItem.getAttribute('data-selector') || originalSelector);
+    
+    // Extract the nth selector type (e.g., ':nth-child' from ':nth-child(odd)')
+    const nthTypeMatch = currentSelector.match(/^(:nth-[^(]+)/);
+    if (!nthTypeMatch) return;
+    
+    const nthType = nthTypeMatch[1];
+    let newParameter = selectedValue;
+    
+    // If custom was selected, use the custom input value
+    if (selectedValue === 'custom' && customInput && customInput.value.trim()) {
+      newParameter = customInput.value.trim();
+    }
+    
+    // Create the new selector
+    const newSelector = `${nthType}(${newParameter})`;
+    
+    // Only proceed if the selector actually changed
+    if (newSelector === currentSelector) {
+      console.log('DSN-DEBUG: Nth selector unchanged, skipping update');
+      return;
+    }
+    
+    // Update the visual display
+    const selectorText = selectorItem.querySelector('.dsn-selector-text');
+    if (selectorText) {
+      selectorText.textContent = newSelector;
+    }
+    
+    // Update the data-selector attribute
+    selectorItem.setAttribute('data-selector', encodeURIComponent(newSelector));
+    
+    // If the selector is currently selected, update it in the selection model
+    if (isSelected) {
+      const selectorType = selectorItem.getAttribute('data-selector-type') || 'pseudo-class';
+      
+      // Deselect the current version (not the original)
+      deselectSelector(elementIndex, currentSelector, selectorType);
+      
+      // Select the new version
+      selectSelector(elementIndex, newSelector, selectorType);
+    }
+    
+    console.log('DSN-DEBUG: Updated nth selector from', currentSelector, 'to', newSelector);
   }
 
   /**

@@ -19,11 +19,18 @@
         <p>Right-click on any element and select "Analyze with DOM Selector Ninja"</p>
       </div>
       
-      <div class="settings">
-        <h2>Settings</h2>
-        <div class="setting-item">
-          <input type="checkbox" id="disable-parent-elements" checked>
-          <label for="disable-parent-elements">Disable parent elements when id selected</label>
+      <div class="settings-section">
+        <h2 class="section-title">Settings</h2>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="disable-parent-elements" class="setting-label">Disable ID parents</label>
+              <p class="setting-description">When an ID is selected, disable parent elements since IDs are unique</p>
+            </div>
+            <div class="setting-control">
+              <input type="checkbox" id="disable-parent-elements" class="setting-checkbox">
+            </div>
+          </div>
         </div>
       </div>
     </main>

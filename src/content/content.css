@@ -1,3 +1,5 @@
+/* Ensure our styles are properly scoped and don't leak to browser UI */
+
 /* Status message that appears when selecting an element */
 .dsn-status-message {
   position: fixed;
