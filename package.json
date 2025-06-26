@@ -8,7 +8,11 @@
     "dev": "webpack --config webpack.config.js --watch",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "package": "npm run build && npm run zip",
+    "zip": "cd dist && zip -r ../dom-selector-ninja.zip . -x '*.map'",
+    "package:crx": "npm run build && web-ext build --source-dir=dist --artifacts-dir=.",
+    "release": "npm run lint && npm run test && npm run package"
   },
   "keywords": [
     "css",
@@ -35,6 +39,7 @@
     "ts-jest": "^29.1.2",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.2",
+    "web-ext": "^7.11.0",
     "webpack": "^5.90.3",
     "webpack-cli": "^5.1.4"
   },

@@ -144,11 +144,34 @@ export class UIManager {
       const hierarchySection = document.createElement('div');
       hierarchySection.className = 'dsn-section';
       
+      // Create a header container for title and checkbox
+      const hierarchyHeader = document.createElement('div');
+      hierarchyHeader.className = 'dsn-section-header';
+      
       const hierarchyTitle = document.createElement('h3');
       hierarchyTitle.className = 'dsn-section-title';
       hierarchyTitle.textContent = 'Element Hierarchy';
       
-      hierarchySection.appendChild(hierarchyTitle);
+      // Create the highlight checkbox
+      const checkboxContainer = document.createElement('label');
+      checkboxContainer.className = 'dsn-hierarchy-checkbox-container';
+      
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = 'dsn-highlight-elements';
+      checkbox.className = 'dsn-highlight-checkbox';
+      checkbox.checked = true; // Default to enabled
+      
+      const checkboxLabel = document.createElement('span');
+      checkboxLabel.textContent = 'Highlight element';
+      
+      checkboxContainer.appendChild(checkbox);
+      checkboxContainer.appendChild(checkboxLabel);
+      
+      hierarchyHeader.appendChild(hierarchyTitle);
+      hierarchyHeader.appendChild(checkboxContainer);
+      
+      hierarchySection.appendChild(hierarchyHeader);
       
       // Create a container for the hierarchy cards
       const hierarchyContainer = document.createElement('div');
@@ -378,6 +401,9 @@ export class UIManager {
       
       // Set up event handlers for clicking on cards
       this.setupCardEventHandlers(panel);
+      
+      // Set up hover event handlers for highlighting DOM elements
+      this.setupHoverEventHandlers(panel, element, ancestors);
       
       // Make panel draggable by header
       this.makePanelDraggable(panel, header);
@@ -2086,6 +2112,66 @@ export class UIManager {
     // Close the menu
     menu.style.display = 'none';
     console.log('DSN-DEBUG: Menu closed after cancel');
+  }
+
+  /**
+   * Set up hover event handlers for highlighting DOM elements when hovering over hierarchy cards
+   */
+  private static setupHoverEventHandlers(panel: HTMLElement, selectedElement: Element, ancestors: AncestorElement[]): void {
+    console.log('DSN-DEBUG: Setting up hover event handlers');
+    
+    // Get the highlight checkbox
+    const highlightCheckbox = panel.querySelector('#dsn-highlight-elements') as HTMLInputElement;
+    if (!highlightCheckbox) {
+      console.warn('DSN-DEBUG: Highlight checkbox not found');
+      return;
+    }
+    
+    const cardHeaders = panel.querySelectorAll('.dsn-card-header');
+    
+    cardHeaders.forEach(header => {
+      const cardIndex = header.getAttribute('data-index');
+      let domElement: Element | null = null;
+      
+      // Map card to actual DOM element
+      if (cardIndex === 'selected') {
+        domElement = selectedElement;
+      } else {
+        const cardDisplayIndex = parseInt(cardIndex || '0');
+        // The UI displays ancestors in reverse order (closest first)
+        // So card index 0 = ancestors[ancestors.length - 1], card index 1 = ancestors[ancestors.length - 2], etc.
+        const actualAncestorIndex = ancestors.length - 1 - cardDisplayIndex;
+        if (actualAncestorIndex >= 0 && actualAncestorIndex < ancestors.length) {
+          domElement = ancestors[actualAncestorIndex]?.element || null;
+          console.log(`DSN-DEBUG: Card ${cardDisplayIndex} maps to ancestor ${actualAncestorIndex}:`, domElement);
+        }
+      }
+      
+      if (domElement) {
+        // Add hover handlers
+        header.addEventListener('mouseenter', () => {
+          // Only highlight if the checkbox is checked
+          if (highlightCheckbox.checked) {
+            domElement?.classList.add('dsn-hover-highlighted');
+            console.log('DSN-DEBUG: Highlighting element on hover:', {
+              cardIndex,
+              tagName: domElement?.tagName,
+              id: domElement?.id,
+              className: domElement?.className,
+              element: domElement
+            });
+          }
+        });
+        
+        header.addEventListener('mouseleave', () => {
+          // Always remove highlight on mouse leave
+          domElement?.classList.remove('dsn-hover-highlighted');
+          console.log('DSN-DEBUG: Removing highlight from element:', domElement?.tagName);
+        });
+      }
+    });
+    
+    console.log(`DSN-DEBUG: Set up hover handlers for ${cardHeaders.length} cards`);
   }
 }
 

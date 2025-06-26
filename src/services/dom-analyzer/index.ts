@@ -81,7 +81,8 @@ export class DomAnalyzer {
         depth: index,
         index: index,
         attributes: this.getElementAttributes(current),
-        path: ancestorPath // Fix: Use the array path instead of a string
+        path: ancestorPath, // Fix: Use the array path instead of a string
+        element: current // Store the actual DOM element reference for hover highlighting
       });
       
       current = current.parentElement;

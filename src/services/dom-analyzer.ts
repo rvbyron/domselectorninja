@@ -61,7 +61,8 @@ export class DomAnalyzer {
         id: current.id,
         className: current.className,
         attributes: attributes,
-        htmlPreview: htmlPreview
+        htmlPreview: htmlPreview,
+        element: current // Store the actual DOM element reference for hover highlighting
       });
       
       current = current.parentElement;

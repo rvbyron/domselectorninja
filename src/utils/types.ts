@@ -42,6 +42,7 @@ export interface AncestorElement {
   index?: number;
   attributes?: Record<string, string>; // Add the missing attributes property
   path?: string[]; // Add the missing path property
+  element: Element; // Store the actual DOM element reference for hover highlighting
 }
 
 // Remove the component implementations from this file
